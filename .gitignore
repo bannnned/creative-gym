@@ -1,0 +1,25 @@
+# Flutter
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/build/
+
+# Android Studio / IntelliJ
+*.iml
+.idea/
+**/.idea/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Local exported artifacts
+Dart_plugin.zip
+Flutter_plugin.zip
+flutter_plugin_list.xml
+emulator-screen.png
