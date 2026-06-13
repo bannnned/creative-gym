@@ -5,6 +5,7 @@ import "testing"
 func TestLoadUsesDefaults(t *testing.T) {
 	t.Setenv("APP_ENV", "")
 	t.Setenv("HTTP_ADDR", "")
+	t.Setenv("DATABASE_URL", "")
 	t.Setenv("DEV_USER_ID", "")
 
 	cfg := Load()
@@ -17,6 +18,10 @@ func TestLoadUsesDefaults(t *testing.T) {
 		t.Fatalf("HTTPAddr = %q, want %q", cfg.HTTPAddr, defaultHTTPAddr)
 	}
 
+	if cfg.DatabaseURL != defaultDBURL {
+		t.Fatalf("DatabaseURL = %q, want %q", cfg.DatabaseURL, defaultDBURL)
+	}
+
 	if cfg.DevUserID != defaultDevUserID {
 		t.Fatalf("DevUserID = %q, want %q", cfg.DevUserID, defaultDevUserID)
 	}
@@ -25,6 +30,7 @@ func TestLoadUsesDefaults(t *testing.T) {
 func TestLoadUsesEnvironment(t *testing.T) {
 	t.Setenv("APP_ENV", "test")
 	t.Setenv("HTTP_ADDR", ":9090")
+	t.Setenv("DATABASE_URL", "postgres://example")
 	t.Setenv("DEV_USER_ID", "11111111-1111-1111-1111-111111111111")
 
 	cfg := Load()
@@ -35,6 +41,10 @@ func TestLoadUsesEnvironment(t *testing.T) {
 
 	if cfg.HTTPAddr != ":9090" {
 		t.Fatalf("HTTPAddr = %q, want :9090", cfg.HTTPAddr)
+	}
+
+	if cfg.DatabaseURL != "postgres://example" {
+		t.Fatalf("DatabaseURL = %q, want postgres://example", cfg.DatabaseURL)
 	}
 
 	if cfg.DevUserID != "11111111-1111-1111-1111-111111111111" {
