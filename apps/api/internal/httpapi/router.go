@@ -5,19 +5,40 @@ import (
 	"log/slog"
 	"net/http"
 
+	"creative-gym/apps/api/internal/challenges"
 	"creative-gym/apps/api/internal/config"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type healthResponse struct {
 	Status string `json:"status"`
 }
 
-func NewRouter(_ config.Config, logger *slog.Logger) http.Handler {
+type errorResponse struct {
+	Error apiError `json:"error"`
+}
+
+type apiError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
 	})
+
+	challengeHandler := challenges.NewHandler(
+		challenges.NewRepository(dbPool),
+		cfg.DevUserID,
+		writeJSON,
+		writeAPIError,
+	)
+
+	mux.HandleFunc("GET /api/v1/challenges/active", challengeHandler.ListActive)
+	mux.HandleFunc("GET /api/v1/challenges/{challengeId}", challengeHandler.GetByID)
 
 	return requestLogger(logger)(mux)
 }
@@ -38,4 +59,13 @@ func writeJSON(w http.ResponseWriter, statusCode int, payload any) {
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
+}
+
+func writeAPIError(w http.ResponseWriter, statusCode int, code string, message string) {
+	writeJSON(w, statusCode, errorResponse{
+		Error: apiError{
+			Code:    code,
+			Message: message,
+		},
+	})
 }

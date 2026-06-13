@@ -8,14 +8,16 @@ import (
 	"testing"
 
 	"creative-gym/apps/api/internal/config"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestHealthz(t *testing.T) {
 	router := NewRouter(config.Config{
-		AppEnv:    "test",
-		HTTPAddr:  ":0",
-		DevUserID: "00000000-0000-0000-0000-000000000001",
-	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		AppEnv:      "test",
+		HTTPAddr:    ":0",
+		DatabaseURL: "postgres://example",
+		DevUserID:   "00000000-0000-0000-0000-000000000001",
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), &pgxpool.Pool{})
 
 	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	response := httptest.NewRecorder()

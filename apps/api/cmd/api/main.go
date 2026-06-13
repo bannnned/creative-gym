@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"creative-gym/apps/api/internal/config"
+	"creative-gym/apps/api/internal/db"
 	"creative-gym/apps/api/internal/httpapi"
 )
 
@@ -23,14 +24,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	server := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(cfg, logger),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	dbPool, err := db.Connect(ctx, cfg)
+	if err != nil {
+		logger.Error("database connection failed", "error", err)
+		os.Exit(1)
+	}
+	defer dbPool.Close()
+
+	server := &http.Server{
+		Addr:              cfg.HTTPAddr,
+		Handler:           httpapi.NewRouter(cfg, logger, dbPool),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 
 	go func() {
 		logger.Info("api server starting", "addr", cfg.HTTPAddr, "env", cfg.AppEnv)

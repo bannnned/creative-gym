@@ -2,8 +2,7 @@
 
 Go REST API for the Creative Gym MVP.
 
-Current milestone: local API skeleton with PostgreSQL migrations and dev seed
-data.
+Current milestone: PostgreSQL-backed active challenges API.
 
 ## Local PostgreSQL
 
@@ -38,6 +37,8 @@ The `seed` command applies idempotent SQL files from `seeds/`.
 
 ## Run Locally
 
+Start PostgreSQL and apply migrations first.
+
 ```powershell
 cd apps/api
 go run ./cmd/api
@@ -53,6 +54,13 @@ Expected response:
 
 ```json
 {"status":"ok"}
+```
+
+Available challenge endpoints:
+
+```txt
+GET /api/v1/challenges/active
+GET /api/v1/challenges/{challengeId}
 ```
 
 ## Test
