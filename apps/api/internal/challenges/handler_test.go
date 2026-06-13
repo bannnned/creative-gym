@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"creative-gym/apps/api/internal/auth"
 )
 
 type fakeStore struct {
@@ -47,10 +49,11 @@ func TestListActive(t *testing.T) {
 				RoomCapacity:       16,
 			}}, nil
 		},
-	}, "dev-user-id", testWriteJSON, testWriteAPIError)
+	}, testWriteJSON, testWriteAPIError)
 	handler.now = func() time.Time { return base }
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/challenges/active", nil)
+	request = request.WithContext(auth.ContextWithUserID(request.Context(), "dev-user-id"))
 	response := httptest.NewRecorder()
 
 	handler.ListActive(response, request)
@@ -78,10 +81,11 @@ func TestGetByIDNotFound(t *testing.T) {
 		getByID: func(ctx context.Context, challengeID string, viewerUserID string) (Challenge, error) {
 			return Challenge{}, ErrNotFound
 		},
-	}, "dev-user-id", testWriteJSON, testWriteAPIError)
+	}, testWriteJSON, testWriteAPIError)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/challenges/missing", nil)
 	request.SetPathValue("challengeId", "missing")
+	request = request.WithContext(auth.ContextWithUserID(request.Context(), "dev-user-id"))
 	response := httptest.NewRecorder()
 
 	handler.GetByID(response, request)
@@ -100,9 +104,10 @@ func TestListActiveError(t *testing.T) {
 		listActive: func(ctx context.Context, viewerUserID string) ([]Challenge, error) {
 			return nil, errors.New("database down")
 		},
-	}, "dev-user-id", testWriteJSON, testWriteAPIError)
+	}, testWriteJSON, testWriteAPIError)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/challenges/active", nil)
+	request = request.WithContext(auth.ContextWithUserID(request.Context(), "dev-user-id"))
 	response := httptest.NewRecorder()
 
 	handler.ListActive(response, request)

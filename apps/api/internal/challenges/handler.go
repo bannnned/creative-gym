@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"time"
+
+	"creative-gym/apps/api/internal/auth"
 )
 
 type Store interface {
@@ -14,16 +16,14 @@ type Store interface {
 
 type Handler struct {
 	store         Store
-	devUserID     string
 	now           func() time.Time
 	writeJSON     func(http.ResponseWriter, int, any)
 	writeAPIError func(http.ResponseWriter, int, string, string)
 }
 
-func NewHandler(store Store, devUserID string, writeJSON func(http.ResponseWriter, int, any), writeAPIError func(http.ResponseWriter, int, string, string)) *Handler {
+func NewHandler(store Store, writeJSON func(http.ResponseWriter, int, any), writeAPIError func(http.ResponseWriter, int, string, string)) *Handler {
 	return &Handler{
 		store:         store,
-		devUserID:     devUserID,
 		now:           time.Now,
 		writeJSON:     writeJSON,
 		writeAPIError: writeAPIError,
@@ -31,7 +31,13 @@ func NewHandler(store Store, devUserID string, writeJSON func(http.ResponseWrite
 }
 
 func (h *Handler) ListActive(w http.ResponseWriter, r *http.Request) {
-	items, err := h.store.ListActive(r.Context(), h.viewerUserID(r))
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		h.writeAPIError(w, http.StatusUnauthorized, "user_required", "User is required.")
+		return
+	}
+
+	items, err := h.store.ListActive(r.Context(), userID)
 	if err != nil {
 		h.writeAPIError(w, http.StatusInternalServerError, "active_challenges_failed", "Failed to load active challenges.")
 		return
@@ -49,7 +55,13 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.store.GetByID(r.Context(), challengeID, h.viewerUserID(r))
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		h.writeAPIError(w, http.StatusUnauthorized, "user_required", "User is required.")
+		return
+	}
+
+	item, err := h.store.GetByID(r.Context(), challengeID, userID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			h.writeAPIError(w, http.StatusNotFound, "challenge_not_found", "Challenge not found.")
@@ -63,12 +75,4 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, challengeResponseEnvelope{
 		Challenge: toChallengeResponse(item, h.now()),
 	})
-}
-
-func (h *Handler) viewerUserID(r *http.Request) string {
-	if userID := r.Header.Get("X-Dev-User-Id"); userID != "" {
-		return userID
-	}
-
-	return h.devUserID
 }

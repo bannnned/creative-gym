@@ -61,7 +61,12 @@ Available challenge endpoints:
 ```txt
 GET /api/v1/challenges/active
 GET /api/v1/challenges/{challengeId}
+POST /api/v1/challenges/{challengeId}/join
+GET /api/v1/rooms/{roomId}
 ```
+
+Before OAuth is implemented, API requests use a dev user. The server reads
+`X-Dev-User-Id` when present and falls back to `DEV_USER_ID`.
 
 ## Test
 

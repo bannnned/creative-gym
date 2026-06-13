@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"net/http"
 
+	"creative-gym/apps/api/internal/auth"
 	"creative-gym/apps/api/internal/challenges"
 	"creative-gym/apps/api/internal/config"
+	"creative-gym/apps/api/internal/rooms"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -32,15 +34,21 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 
 	challengeHandler := challenges.NewHandler(
 		challenges.NewRepository(dbPool),
-		cfg.DevUserID,
+		writeJSON,
+		writeAPIError,
+	)
+	roomHandler := rooms.NewHandler(
+		rooms.NewRepository(dbPool),
 		writeJSON,
 		writeAPIError,
 	)
 
 	mux.HandleFunc("GET /api/v1/challenges/active", challengeHandler.ListActive)
 	mux.HandleFunc("GET /api/v1/challenges/{challengeId}", challengeHandler.GetByID)
+	mux.HandleFunc("POST /api/v1/challenges/{challengeId}/join", roomHandler.JoinChallenge)
+	mux.HandleFunc("GET /api/v1/rooms/{roomId}", roomHandler.GetByID)
 
-	return requestLogger(logger)(mux)
+	return requestLogger(logger)(auth.DevUserMiddleware(cfg.DevUserID)(mux))
 }
 
 func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
