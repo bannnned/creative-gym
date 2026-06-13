@@ -8,6 +8,7 @@ import (
 	"creative-gym/apps/api/internal/auth"
 	"creative-gym/apps/api/internal/challenges"
 	"creative-gym/apps/api/internal/config"
+	"creative-gym/apps/api/internal/db"
 	"creative-gym/apps/api/internal/rooms"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -31,6 +32,14 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
 	})
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		if err := db.Ping(r.Context(), dbPool); err != nil {
+			writeAPIError(w, http.StatusServiceUnavailable, "database_not_ready", "Database is not ready.")
+			return
+		}
+
+		writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
+	})
 
 	challengeHandler := challenges.NewHandler(
 		challenges.NewRepository(dbPool),
@@ -48,7 +57,11 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 	mux.HandleFunc("POST /api/v1/challenges/{challengeId}/join", roomHandler.JoinChallenge)
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}", roomHandler.GetByID)
 
-	return requestLogger(logger)(auth.DevUserMiddleware(cfg.DevUserID)(mux))
+	handler := auth.DevUserMiddleware(cfg.DevUserID)(mux)
+	handler = corsMiddleware(cfg.CORSAllowedOrigins)(handler)
+	handler = requestLogger(logger)(handler)
+
+	return handler
 }
 
 func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
@@ -76,4 +89,40 @@ func writeAPIError(w http.ResponseWriter, statusCode int, code string, message s
 			Message: message,
 		},
 	})
+}
+
+func corsMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	allowAll := false
+	for _, origin := range allowedOrigins {
+		if origin == "*" {
+			allowAll = true
+			continue
+		}
+		allowed[origin] = struct{}{}
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				if allowAll {
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+				} else if _, ok := allowed[origin]; ok {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Add("Vary", "Origin")
+				}
+
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Dev-User-Id")
+			}
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

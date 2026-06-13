@@ -48,6 +48,7 @@ Health check:
 
 ```powershell
 curl http://localhost:8080/healthz
+curl http://localhost:8080/readyz
 ```
 
 Expected response:
@@ -85,3 +86,25 @@ Initial variables:
 - `HTTP_ADDR` - address for the HTTP server, defaults to `:8080`.
 - `DATABASE_URL` - PostgreSQL connection string.
 - `DEV_USER_ID` - temporary user id for pre-OAuth development.
+- `CORS_ALLOWED_ORIGINS` - comma-separated browser origins allowed by CORS.
+
+## Docker
+
+Build locally:
+
+```powershell
+docker build -t creative-gym-api .
+```
+
+Run with environment variables:
+
+```powershell
+docker run --rm -p 8080:8080 --env-file .env creative-gym-api
+```
+
+The image also contains the DB helper:
+
+```powershell
+docker run --rm --env-file .env creative-gym-api /app/db migrate
+docker run --rm --env-file .env creative-gym-api /app/db seed
+```
