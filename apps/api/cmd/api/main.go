@@ -47,6 +47,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer dbPool.Close()
+	logger.Info("database pool created")
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,

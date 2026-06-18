@@ -14,10 +14,5 @@ func Connect(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("create database pool: %w", err)
 	}
 
-	if err := Ping(ctx, pool); err != nil {
-		pool.Close()
-		return nil, err
-	}
-
 	return pool, nil
 }
