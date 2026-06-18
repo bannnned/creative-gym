@@ -2,6 +2,10 @@
 
 Date: 2026-06-06
 
+Status: archived prototype direction. The MVP client is now planned as a React
+PWA in `apps/web`; see `12-react-pwa-plan.md`. Keep this document as reference
+for the existing Flutter prototype and for possible future native apps.
+
 This document defines how the Flutter app should grow from the current login
 screen into the MVP described in `07-mvp-plan.md`.
 

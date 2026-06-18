@@ -1,10 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:creative_gym_mobile/app/creative_gym_app.dart';
+import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  setUpAll(() {
+    bootstrapApp();
+  });
   Future<void> openWeeklyWorkouts(WidgetTester tester) async {
     await tester.pumpWidget(const CreativeGymApp());
 
@@ -85,6 +89,12 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> voteLeftAndSettle(WidgetTester tester) async {
+    await tester.tap(find.text('Выбрать левый'));
+    await tester.pump(const Duration(milliseconds: 420));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('shows login providers', (tester) async {
     await tester.pumpWidget(const CreativeGymApp());
 
@@ -101,8 +111,30 @@ void main() {
 
     expect(find.text('Weekly Workouts'), findsOneWidget);
     expect(find.text('Активные фото-тренировки'), findsOneWidget);
+    expect(find.text('Прием работ'), findsWidgets);
     expect(find.text('Утренний свет'), findsOneWidget);
     expect(find.text('Подробнее'), findsWidgets);
+
+    await tester.scrollUntilVisible(
+      find.text('Голосование сейчас'),
+      260,
+      scrollable: find.byType(Scrollable),
+    );
+    expect(find.text('Голосование сейчас'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Завершенные'),
+      260,
+      scrollable: find.byType(Scrollable),
+    );
+    expect(find.text('Завершенные'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Скоро'),
+      260,
+      scrollable: find.byType(Scrollable),
+    );
+    expect(find.text('Скоро'), findsOneWidget);
   });
 
   testWidgets('opens challenge details from weekly workouts', (tester) async {
@@ -169,11 +201,27 @@ void main() {
     expect(find.text('Пара 1 из 3'), findsOneWidget);
     expect(find.text('Выбрать левый'), findsOneWidget);
     expect(find.text('Выбрать правый'), findsOneWidget);
+    expect(find.text('Пропустить пару'), findsOneWidget);
 
     await tester.tap(find.text('Выбрать левый'));
+    await tester.pump(const Duration(milliseconds: 120));
+
+    expect(
+      find.text('Выбор принят, загружаем следующую пару...'),
+      findsOneWidget,
+    );
+    expect(find.text('Выбрано'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 420));
     await tester.pumpAndSettle();
 
     expect(find.text('Пара 2 из 3'), findsOneWidget);
+    expect(find.text('1 выбрано'), findsOneWidget);
+
+    await tester.tap(find.text('Пропустить пару'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Пара 3 из 3'), findsOneWidget);
     expect(find.text('1 выбрано'), findsOneWidget);
   });
 
@@ -209,12 +257,9 @@ void main() {
 
     await openVoting(tester);
 
-    await tester.tap(find.text('Выбрать левый'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Выбрать левый'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Выбрать левый'));
-    await tester.pumpAndSettle();
+    await voteLeftAndSettle(tester);
+    await voteLeftAndSettle(tester);
+    await voteLeftAndSettle(tester);
 
     expect(find.text('Голосование завершено'), findsOneWidget);
     expect(find.text('Посмотреть результаты'), findsOneWidget);

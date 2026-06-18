@@ -1,27 +1,50 @@
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
-import 'package:creative_gym_mobile/features/rooms/data/mock_gym_rooms.dart';
+import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
+import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class GymRoomScreen extends StatelessWidget {
+class GymRoomScreen extends StatefulWidget {
   const GymRoomScreen({super.key, required this.roomId});
 
   final String roomId;
 
   @override
-  Widget build(BuildContext context) {
-    final room = findMockGymRoomById(roomId);
+  State<GymRoomScreen> createState() => _GymRoomScreenState();
+}
 
+class _GymRoomScreenState extends State<GymRoomScreen> {
+  late Future<GymRoom?> _roomFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoom();
+  }
+
+  void _loadRoom() {
+    setState(() {
+      _roomFuture = appDependencies.rooms.getRoomById(widget.roomId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return AppScaffold(
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Назад',
-          onPressed: () {
+          onPressed: () async {
+            final room = await _roomFuture;
+            if (!context.mounted) {
+              return;
+            }
+
             if (room == null) {
               context.go(AppRoutes.challenges);
               return;
@@ -33,7 +56,28 @@ class GymRoomScreen extends StatelessWidget {
         ),
         title: const Text('Gym Room'),
       ),
-      body: room == null ? const _MissingRoom() : _GymRoomContent(room: room),
+      body: FutureBuilder<GymRoom?>(
+        future: _roomFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AsyncLoadingPanel(message: 'Загрузка Gym Room...');
+          }
+
+          if (snapshot.hasError) {
+            return AsyncErrorPanel(
+              message: snapshot.error.toString(),
+              onRetry: _loadRoom,
+            );
+          }
+
+          final room = snapshot.data;
+          if (room == null) {
+            return const _MissingRoom();
+          }
+
+          return _GymRoomContent(room: room);
+        },
+      ),
     );
   }
 }

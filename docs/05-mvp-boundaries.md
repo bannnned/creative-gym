@@ -6,7 +6,7 @@ Create the first working vertical slice for Creative Gym:
 
 - run the Go API locally;
 - run PostgreSQL locally;
-- run the Flutter app;
+- run the React PWA;
 - sign in with a supported OAuth provider;
 - fetch active photo challenges from the backend;
 - open challenge details;
@@ -35,7 +35,7 @@ Backend:
 - initial schema for MVP entities;
 - seed data for 2-3 active photo challenges;
 - OAuth account model for Google, Yandex, and GitHub identities;
-- session or token flow for mobile API requests;
+- session or token flow for client API requests;
 - active challenges endpoint;
 - join challenge endpoint;
 - room details endpoint;
@@ -44,12 +44,13 @@ Backend:
 - pairwise voting endpoint;
 - basic results endpoint.
 
-Mobile:
+Web:
 
-- Flutter app skeleton;
-- routing with `go_router`;
-- state management with Riverpod;
-- HTTP client with `dio`;
+- React PWA skeleton;
+- routing with React Router;
+- server state with TanStack Query;
+- typed API client;
+- PWA manifest and installable app basics;
 - auth screens for Google, Yandex, and GitHub sign-in;
 - active challenges screen;
 - challenge details screen;
@@ -91,9 +92,9 @@ The first implementation is done when:
 
 1. Local PostgreSQL starts.
 2. Go API starts.
-3. Flutter app starts.
+3. React PWA starts.
 4. User can sign in through at least one configured OAuth provider locally, with code structured for Google, Yandex, and GitHub.
-5. Flutter fetches active challenges from the Go API.
+5. React PWA fetches active challenges from the Go API.
 6. User can tap a challenge and join a room.
 7. Room screen opens and displays backend room data.
 8. User can upload exactly one photo during the 5-day submission phase.

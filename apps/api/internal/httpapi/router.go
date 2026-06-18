@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"creative-gym/apps/api/internal/auth"
 	"creative-gym/apps/api/internal/challenges"
@@ -57,11 +60,43 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 	mux.HandleFunc("POST /api/v1/challenges/{challengeId}/join", roomHandler.JoinChallenge)
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}", roomHandler.GetByID)
 
-	handler := auth.DevUserMiddleware(cfg.DevUserID)(mux)
+	var handler http.Handler = mux
+	if cfg.WebStaticDir != "" {
+		handler = spaHandler(cfg.WebStaticDir, handler)
+	}
+
+	handler = auth.DevUserMiddleware(cfg.DevUserID)(handler)
 	handler = corsMiddleware(cfg.CORSAllowedOrigins)(handler)
 	handler = requestLogger(logger)(handler)
 
 	return handler
+}
+
+func spaHandler(staticDir string, apiHandler http.Handler) http.Handler {
+	fileServer := http.FileServer(http.Dir(staticDir))
+	indexPath := filepath.Join(staticDir, "index.html")
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isAPIPath(r.URL.Path) {
+			apiHandler.ServeHTTP(w, r)
+			return
+		}
+
+		filePath := filepath.Join(staticDir, filepath.Clean(r.URL.Path))
+		if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		http.ServeFile(w, r, indexPath)
+	})
+}
+
+func isAPIPath(path string) bool {
+	return path == "/healthz" ||
+		path == "/readyz" ||
+		path == "/api" ||
+		strings.HasPrefix(path, "/api/")
 }
 
 func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {

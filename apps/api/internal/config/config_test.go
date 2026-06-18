@@ -9,6 +9,7 @@ func TestLoadUsesDefaults(t *testing.T) {
 	t.Setenv("DATABASE_URL", "")
 	t.Setenv("DEV_USER_ID", "")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	t.Setenv("WEB_STATIC_DIR", "")
 
 	cfg := Load()
 
@@ -31,6 +32,10 @@ func TestLoadUsesDefaults(t *testing.T) {
 	if len(cfg.CORSAllowedOrigins) != 0 {
 		t.Fatalf("CORSAllowedOrigins = %v, want empty", cfg.CORSAllowedOrigins)
 	}
+
+	if cfg.WebStaticDir != "" {
+		t.Fatalf("WebStaticDir = %q, want empty", cfg.WebStaticDir)
+	}
 }
 
 func TestLoadUsesEnvironment(t *testing.T) {
@@ -40,6 +45,7 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://example")
 	t.Setenv("DEV_USER_ID", "11111111-1111-1111-1111-111111111111")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com, http://localhost:3000")
+	t.Setenv("WEB_STATIC_DIR", "/app/web")
 
 	cfg := Load()
 
@@ -65,6 +71,10 @@ func TestLoadUsesEnvironment(t *testing.T) {
 
 	if cfg.CORSAllowedOrigins[0] != "https://app.example.com" {
 		t.Fatalf("first origin = %q, want https://app.example.com", cfg.CORSAllowedOrigins[0])
+	}
+
+	if cfg.WebStaticDir != "/app/web" {
+		t.Fatalf("WebStaticDir = %q, want /app/web", cfg.WebStaticDir)
 	}
 }
 

@@ -1,15 +1,35 @@
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
-import 'package:creative_gym_mobile/features/challenges/data/mock_weekly_workouts.dart';
+import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:creative_gym_mobile/features/challenges/domain/weekly_workout.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
+import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class WeeklyWorkoutsScreen extends StatelessWidget {
+class WeeklyWorkoutsScreen extends StatefulWidget {
   const WeeklyWorkoutsScreen({super.key});
+
+  @override
+  State<WeeklyWorkoutsScreen> createState() => _WeeklyWorkoutsScreenState();
+}
+
+class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
+  late Future<List<WeeklyWorkout>> _workoutsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWorkouts();
+  }
+
+  void _loadWorkouts() {
+    setState(() {
+      _workoutsFuture = appDependencies.challenges.getActiveWorkouts();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,20 +42,92 @@ class WeeklyWorkoutsScreen extends StatelessWidget {
         ),
         title: const Text('Weekly Workouts'),
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return const _WeeklyWorkoutsHeader();
+      body: FutureBuilder<List<WeeklyWorkout>>(
+        future: _workoutsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AsyncLoadingPanel(
+              message: 'Загрузка Weekly Workouts...',
+            );
           }
 
-          final workout = mockWeeklyWorkouts[index - 1];
-          return _WeeklyWorkoutCard(workout: workout);
+          if (snapshot.hasError) {
+            return AsyncErrorPanel(
+              message: snapshot.error.toString(),
+              onRetry: _loadWorkouts,
+            );
+          }
+
+          final workouts = snapshot.data ?? const <WeeklyWorkout>[];
+          final sections = _WorkoutSectionData.sections(workouts);
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+            children: [
+              const _WeeklyWorkoutsHeader(),
+              const SizedBox(height: 18),
+              for (final section in sections)
+                if (section.workouts.isNotEmpty) ...[
+                  _WeeklyWorkoutSection(section: section),
+                  const SizedBox(height: 22),
+                ],
+            ],
+          );
         },
-        separatorBuilder: (context, index) => const SizedBox(height: 18),
-        itemCount: mockWeeklyWorkouts.length + 1,
       ),
     );
+  }
+}
+
+class _WorkoutSectionData {
+  const _WorkoutSectionData({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.workouts,
+  });
+
+  final String title;
+  final String description;
+  final IconData icon;
+  final List<WeeklyWorkout> workouts;
+
+  static List<_WorkoutSectionData> sections(List<WeeklyWorkout> workouts) {
+    return [
+      _WorkoutSectionData(
+        title: 'Прием работ',
+        description: 'Можно присоединиться и загрузить одну фотографию.',
+        icon: Icons.add_photo_alternate_outlined,
+        workouts: _byPhase(workouts, 'Прием работ'),
+      ),
+      _WorkoutSectionData(
+        title: 'Голосование сейчас',
+        description: 'Анонимные пары открыты для joined Gym Rooms.',
+        icon: Icons.compare_arrows,
+        workouts: _byPhase(workouts, 'Голосование'),
+      ),
+      _WorkoutSectionData(
+        title: 'Завершенные',
+        description: 'Результаты комнаты уже можно посмотреть.',
+        icon: Icons.emoji_events_outlined,
+        workouts: _byPhase(workouts, 'Результаты'),
+      ),
+      _WorkoutSectionData(
+        title: 'Скоро',
+        description: 'Тренировки, которые появятся следующими.',
+        icon: Icons.schedule,
+        workouts: _byPhase(workouts, 'Скоро старт'),
+      ),
+    ];
+  }
+
+  static List<WeeklyWorkout> _byPhase(
+    List<WeeklyWorkout> workouts,
+    String phase,
+  ) {
+    return workouts
+        .where((workout) => workout.phase == phase)
+        .toList(growable: false);
   }
 }
 
@@ -70,6 +162,74 @@ class _WeeklyWorkoutsHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _WeeklyWorkoutSection extends StatelessWidget {
+  const _WeeklyWorkoutSection({required this.section});
+
+  final _WorkoutSectionData section;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.44),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.56)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(9),
+                child: Icon(
+                  section.icon,
+                  color: AppTheme.primaryDark,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    section.title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppTheme.ink,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    section.description,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.mutedInk,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SoftChip(
+              icon: Icons.layers_outlined,
+              label: '${section.workouts.length}',
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        for (final workout in section.workouts) ...[
+          _WeeklyWorkoutCard(workout: workout),
+          if (workout != section.workouts.last) const SizedBox(height: 18),
+        ],
+      ],
     );
   }
 }

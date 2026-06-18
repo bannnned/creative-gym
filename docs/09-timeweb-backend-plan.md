@@ -10,9 +10,9 @@ Gym MVP on Timeweb Cloud.
 Start simple:
 
 ```text
-Flutter mobile app
-  -> Go REST API
-  -> Managed PostgreSQL
+React PWA
+  -> Go REST API on Timeweb App Platform
+  -> Timeweb Managed PostgreSQL
   -> Timeweb S3-compatible Object Storage
 ```
 
@@ -22,11 +22,11 @@ or email jobs become real needs.
 
 ## Timeweb Services
 
-Use these Timeweb Cloud services:
+Use these Timeweb Cloud services for the MVP:
 
-- App Platform or a small cloud server for the Go API.
+- App Platform for one Dockerfile app that serves both the React PWA and Go API.
 - Managed PostgreSQL for relational data.
-- S3-compatible Object Storage for uploaded photos.
+- S3-compatible Object Storage with a private bucket for uploaded photos.
 
 Official docs:
 
@@ -37,9 +37,9 @@ Official docs:
 
 ## Deployment Shape
 
-### MVP Option A: App Platform
+### MVP Recommendation: App Platform
 
-Use this first if it supports the Go service shape cleanly enough.
+Use this first.
 
 Why:
 
@@ -47,16 +47,19 @@ Why:
 - automatic app restarts;
 - technical domain with SSL;
 - less server administration.
+- cheaper operational complexity than maintaining a VPS and database backups.
 
-Expected app:
+Expected app shape:
 
 ```text
-apps/api
-  Dockerfile
-  cmd/api/main.go
+one Dockerfile app
+  builds apps/web React PWA
+  builds apps/api Go API
+  serves /api/* from Go
+  serves React static assets for /*
 ```
 
-### MVP Option B: Small Cloud Server
+### Alternative: Small Cloud Server
 
 Use this if App Platform is limiting for Go, migrations, private networking, or
 custom runtime needs.
@@ -67,8 +70,29 @@ Run:
 - Caddy or nginx for TLS/proxy if needed;
 - systemd or Docker Compose for restart policy.
 
-Still use Managed PostgreSQL and S3. Do not put production PostgreSQL inside the
-same VM unless cost forces it during a private prototype.
+Still use Managed PostgreSQL and S3. Do not put production PostgreSQL inside
+the same VM unless cost forces it during a private prototype.
+
+## Selected MVP Timeweb Configuration
+
+Use:
+
+- App Platform Dockerfile app, Moscow, 1 CPU, 2 GB RAM, 30 GB NVMe.
+- Managed PostgreSQL, Moscow, 1 CPU, 2 GB RAM, 20 GB NVMe.
+- PostgreSQL public IPv4 enabled because it is required for App Platform access
+  in this setup.
+- PostgreSQL physical backups enabled.
+- S3-compatible Object Storage, standard class, 10 GB to start.
+- S3 bucket type: private.
+
+Approximate selected cost:
+
+```text
+App Platform:       810 RUB/month
+Managed PostgreSQL: 1090 RUB/month
+S3 10 GB:             79 RUB/month
+Total:              1979 RUB/month
+```
 
 ## Backend Structure
 
@@ -129,6 +153,7 @@ OAUTH_GITHUB_CLIENT_SECRET=...
 
 SESSION_SECRET=...
 PUBLIC_API_BASE_URL=https://api.example.com
+PUBLIC_APP_BASE_URL=https://app.example.com
 ```
 
 Keep secrets out of Git. Use Timeweb environment/secret settings or server-side
@@ -334,13 +359,13 @@ GET /v1/me
 
 Preferred MVP flow:
 
-1. Mobile asks API to create an upload target.
+1. PWA asks API to create an upload target.
 2. API validates room/challenge phase.
 3. API creates a private S3 object key.
-4. Mobile uploads directly to S3 with a signed URL, or uploads through API for
+4. PWA uploads directly to S3 with a signed URL, or uploads through API for
    the very first implementation.
 5. API stores `submission` and `media_objects` rows.
-6. Mobile reads previews through API-issued signed read URLs.
+6. PWA reads previews through API-issued signed read URLs.
 
 Direct signed upload scales better. API-proxy upload is simpler for the first
 vertical slice. Pick API-proxy first if speed matters more than upload
@@ -356,13 +381,21 @@ minio
 api
 ```
 
-The mobile app should point to:
+The Flutter prototype should point to:
 
 ```text
 http://10.0.2.2:8080
 ```
 
 when running on the Android emulator.
+
+The React PWA should point to:
+
+```text
+http://localhost:8080
+```
+
+or use the same origin when the API serves the built PWA.
 
 ## First Backend Milestone
 
@@ -374,7 +407,7 @@ Build this before real OAuth/upload:
 4. migrations for `challenges`.
 5. seed 2-3 active Weekly Workouts.
 6. `GET /v1/challenges/active`.
-7. Flutter replaces mock workouts with API data.
+7. React PWA reads active workouts from API data.
 
 That gives the app its first real backend-backed screen while keeping scope
 small.

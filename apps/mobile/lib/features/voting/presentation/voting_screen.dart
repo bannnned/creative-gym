@@ -1,10 +1,11 @@
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
-import 'package:creative_gym_mobile/features/rooms/data/mock_gym_rooms.dart';
+import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
 import 'package:creative_gym_mobile/features/voting/data/mock_vote_pairs.dart';
 import 'package:creative_gym_mobile/features/voting/domain/vote_pair.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
+import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +22,7 @@ class VotingScreen extends StatefulWidget {
 }
 
 class _VotingScreenState extends State<VotingScreen> {
-  late final GymRoom? _room = findMockGymRoomById(widget.roomId);
+  late Future<GymRoom?> _roomFuture;
   int _currentIndex = 0;
   int _votesCount = 0;
   String? _selectedSide;
@@ -30,9 +31,19 @@ class _VotingScreenState extends State<VotingScreen> {
   bool get _isComplete => _currentIndex >= mockVotePairs.length;
 
   @override
-  Widget build(BuildContext context) {
-    final room = _room;
+  void initState() {
+    super.initState();
+    _loadRoom();
+  }
 
+  void _loadRoom() {
+    setState(() {
+      _roomFuture = appDependencies.rooms.getRoomById(widget.roomId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return AppScaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -42,26 +53,51 @@ class _VotingScreenState extends State<VotingScreen> {
         ),
         title: const Text('Voting'),
       ),
-      body: room == null
-          ? const _MissingVotingRoom()
-          : !widget.demoMode && !room.canVote
-          ? _VotingUnavailable(room: room)
-          : mockVotePairs.isEmpty
-          ? _VotingEmpty(room: room)
-          : _isComplete
-          ? _VotingComplete(room: room, votesCount: _votesCount)
-          : _VotingContent(
-              room: room,
-              pair: mockVotePairs[_currentIndex],
-              currentIndex: _currentIndex,
-              total: mockVotePairs.length,
-              votesCount: _votesCount,
-              selectedSide: _selectedSide,
-              isLocked: _isAdvancing,
-              onVoteLeft: () => _vote('left'),
-              onVoteRight: () => _vote('right'),
-              onSkip: _skipPair,
-            ),
+      body: FutureBuilder<GymRoom?>(
+        future: _roomFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AsyncLoadingPanel(message: 'Загрузка комнаты...');
+          }
+
+          if (snapshot.hasError) {
+            return AsyncErrorPanel(
+              message: snapshot.error.toString(),
+              onRetry: _loadRoom,
+            );
+          }
+
+          final room = snapshot.data;
+          if (room == null) {
+            return const _MissingVotingRoom();
+          }
+
+          if (!widget.demoMode && !room.canVote) {
+            return _VotingUnavailable(room: room);
+          }
+
+          if (mockVotePairs.isEmpty) {
+            return _VotingEmpty(room: room);
+          }
+
+          if (_isComplete) {
+            return _VotingComplete(room: room, votesCount: _votesCount);
+          }
+
+          return _VotingContent(
+            room: room,
+            pair: mockVotePairs[_currentIndex],
+            currentIndex: _currentIndex,
+            total: mockVotePairs.length,
+            votesCount: _votesCount,
+            selectedSide: _selectedSide,
+            isLocked: _isAdvancing,
+            onVoteLeft: () => _vote('left'),
+            onVoteRight: () => _vote('right'),
+            onSkip: _skipPair,
+          );
+        },
+      ),
     );
   }
 
@@ -190,20 +226,18 @@ class _VotingContent extends StatelessWidget {
                     ? Text(
                         'Тапните по карточке или кнопке выбора.',
                         key: const ValueKey('vote-help'),
-                        style: Theme.of(context).textTheme.bodyMedium
-                            ?.copyWith(
-                              color: AppTheme.mutedInk,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.mutedInk,
+                          fontWeight: FontWeight.w700,
+                        ),
                       )
                     : Text(
                         'Выбор принят, загружаем следующую пару...',
                         key: const ValueKey('vote-selected'),
-                        style: Theme.of(context).textTheme.bodyMedium
-                            ?.copyWith(
-                              color: AppTheme.primaryDark,
-                              fontWeight: FontWeight.w900,
-                            ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.primaryDark,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
               ),
               const SizedBox(height: 12),
@@ -293,89 +327,90 @@ class _VotePhotoCard extends StatelessWidget {
         child: GlassPanel(
           onTap: isLocked ? null : onVote,
           tint: isSelected ? const Color(0xCCFFFFFF) : const Color(0xB3FFFFFF),
-      padding: const EdgeInsets.all(10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AspectRatio(
-            aspectRatio: 3 / 4,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppTheme.radiusM),
-                border: Border.all(
-                  color: isSelected
-                      ? Colors.white
-                      : Colors.white.withValues(alpha: 0),
-                  width: 3,
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(palette.start),
-                    Color(palette.middle),
-                    Color(palette.end),
-                  ],
-                ),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Positioned(
-                    right: -30,
-                    top: 18,
-                    child: _VoteRing(
-                      size: 112,
-                      color: Colors.white.withValues(alpha: 0.2),
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AspectRatio(
+                aspectRatio: 3 / 4,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0),
+                      width: 3,
+                    ),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(palette.start),
+                        Color(palette.middle),
+                        Color(palette.end),
+                      ],
                     ),
                   ),
-                  if (isSelected)
-                    Positioned(
-                      right: 12,
-                      top: 12,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          shape: BoxShape.circle,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Positioned(
+                        right: -30,
+                        top: 18,
+                        child: _VoteRing(
+                          size: 112,
+                          color: Colors.white.withValues(alpha: 0.2),
                         ),
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(
-                            Icons.check,
-                            color: AppTheme.primaryDark,
-                            size: 20,
+                      ),
+                      if (isSelected)
+                        Positioned(
+                          right: 12,
+                          top: 12,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Icon(
+                                Icons.check,
+                                color: AppTheme.primaryDark,
+                                size: 20,
+                              ),
+                            ),
                           ),
                         ),
+                      Center(
+                        child: Text(
+                          label,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
                       ),
-                    ),
-                  Center(
-                    child: Text(
-                      label,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 10),
+              AbsorbPointer(
+                absorbing: isLocked,
+                child: GlassButton(
+                  onPressed: onVote,
+                  icon: isSelected ? Icons.check_circle_outline : Icons.check,
+                  label: isSelected ? 'Выбрано' : buttonLabel,
+                  variant: isSelected
+                      ? GlassButtonVariant.primary
+                      : GlassButtonVariant.tonal,
+                  minHeight: 46,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          AbsorbPointer(
-            absorbing: isLocked,
-            child: GlassButton(
-              onPressed: onVote,
-              icon: isSelected ? Icons.check_circle_outline : Icons.check,
-              label: isSelected ? 'Выбрано' : buttonLabel,
-              variant: isSelected
-                  ? GlassButtonVariant.primary
-                  : GlassButtonVariant.tonal,
-              minHeight: 46,
-            ),
-          ),
-        ],
-      ),
         ),
       ),
     );

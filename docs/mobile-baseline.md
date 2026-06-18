@@ -1,6 +1,6 @@
 # Creative Gym Mobile Baseline
 
-Date: 2026-06-06
+Date: 2026-06-11
 
 This document records the current baseline for the Flutter mobile app before
 larger feature work starts. It is a reference point for what exists, what has
@@ -79,18 +79,30 @@ Current UI:
 - `/rooms/:roomId` opens the local demo Gym Room screen.
 - `/rooms/:roomId/upload` opens the local demo Upload Photo screen.
 - `/rooms/:roomId/vote` opens the local demo Voting screen.
+- `/rooms/:roomId/results` opens the local demo Results screen.
+- `?demo=1` can be used on Voting and Results routes to bypass phase guards
+  for local UI testing.
 - The screen contains a brand header, a login panel, and a footer note.
 - Login provider buttons exist for Google, Yandex, and GitHub.
 - Provider buttons are placeholders and show a `SnackBar`; OAuth is not wired.
 - The demo flow uses local mock Weekly Workout data until the Go API exists.
-- The demo Gym Room shows phase, deadline, participant progress, and photo
-  submission placeholder state.
+- Weekly Workouts are grouped by phase: submission, voting, results, and
+  upcoming.
+- The demo Gym Room uses phase-aware actions for upload, voting, and results,
+  plus explicit demo shortcuts for local testing.
 - The demo Upload Photo flow supports local placeholder states for no photo,
   selected photo, saved photo, replace, and delete. It is not connected to S3
-  yet.
+  yet. Direct route access is guarded outside the submission phase.
 - The demo Voting flow supports local anonymous pairwise comparison, progress,
-  vote count, and a completion state. It is not connected to backend voting
-  rules yet.
+- vote count, selected-card feedback, skip pair, and a completion state. Direct
+  route access is guarded outside the voting phase. It is not connected to
+  backend voting rules yet.
+- The demo Results flow supports local completion copy, the user's own
+  submission result, and a small mock ranking. Direct route access is guarded
+  until the results phase.
+- `core/config`, `core/network`, and repository implementations now prepare
+  the app for `GET /api/v1/challenges/active`, challenge details, join, and
+  room details. Default mode still uses local mocks.
 - The current visual direction uses a soft glass aesthetic: shared gradient
   background, subtle film grain overlay, translucent panels, compact chips, and
   restrained green/copper accents. Primary actions use custom gradient glass
@@ -117,6 +129,7 @@ Runtime dependencies are minimal:
 ```text
 flutter sdk
 cupertino_icons
+dio
 go_router
 ```
 
@@ -178,16 +191,36 @@ The first architecture split from `08-mobile-architecture-plan.md` is in place:
 
 ```text
 lib/main.dart
+lib/core/app_dependencies.dart
+lib/core/config/app_config.dart
+lib/core/errors/api_exception.dart
+lib/core/network/api_client.dart
+lib/core/utils/challenge_labels.dart
 lib/app/app_router.dart
 lib/app/creative_gym_app.dart
 lib/app/app_theme.dart
 lib/features/auth/presentation/login_screen.dart
 lib/features/auth/presentation/widgets/login_button.dart
 lib/features/challenges/data/mock_weekly_workouts.dart
+lib/features/challenges/data/mock_challenges_repository.dart
+lib/features/challenges/data/api_challenges_repository.dart
+lib/features/challenges/data/fallback_challenges_repository.dart
+lib/features/challenges/data/dto/challenge_dto.dart
+lib/features/challenges/data/mappers/challenge_mapper.dart
+lib/features/challenges/domain/challenges_repository.dart
 lib/features/challenges/domain/weekly_workout.dart
 lib/features/challenges/presentation/challenge_details_screen.dart
 lib/features/challenges/presentation/weekly_workouts_screen.dart
+lib/features/results/data/mock_room_results.dart
+lib/features/results/domain/room_result.dart
+lib/features/results/presentation/results_screen.dart
 lib/features/rooms/data/mock_gym_rooms.dart
+lib/features/rooms/data/mock_rooms_repository.dart
+lib/features/rooms/data/api_rooms_repository.dart
+lib/features/rooms/data/fallback_rooms_repository.dart
+lib/features/rooms/data/dto/room_dto.dart
+lib/features/rooms/data/mappers/room_mapper.dart
+lib/features/rooms/domain/rooms_repository.dart
 lib/features/rooms/domain/gym_room.dart
 lib/features/rooms/presentation/gym_room_screen.dart
 lib/features/submissions/presentation/upload_submission_screen.dart
@@ -204,3 +237,5 @@ lib/shared/widgets/glass_panel.dart
 
 Build the first Go API slice described in `09-timeweb-backend-plan.md`, then
 replace `mockWeeklyWorkouts` with data from `GET /v1/challenges/active`.
+Keep the current phase-aware frontend flow as the local demo baseline while API
+integration is being added.

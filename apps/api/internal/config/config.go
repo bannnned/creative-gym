@@ -19,6 +19,7 @@ type Config struct {
 	DatabaseURL        string
 	DevUserID          string
 	CORSAllowedOrigins []string
+	WebStaticDir       string
 }
 
 func Load() Config {
@@ -28,6 +29,7 @@ func Load() Config {
 		DatabaseURL:        getEnv("DATABASE_URL", defaultDBURL),
 		DevUserID:          getEnv("DEV_USER_ID", defaultDevUserID),
 		CORSAllowedOrigins: splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
+		WebStaticDir:       os.Getenv("WEB_STATIC_DIR"),
 	}
 }
 

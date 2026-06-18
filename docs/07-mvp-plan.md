@@ -251,7 +251,7 @@ Supported provider path values:
 - `yandex`
 - `github`
 
-Exact mobile OAuth mechanics can be adjusted during implementation, but the backend must own provider verification and user identity linking.
+Exact browser OAuth mechanics can be adjusted during implementation, but the backend must own provider verification and user identity linking.
 
 ### Challenges
 
@@ -332,7 +332,7 @@ Preferred direction:
 
 Deliver:
 
-- `apps/mobile`;
+- `apps/web`;
 - `apps/api`;
 - `docker-compose.yml`;
 - PostgreSQL;
@@ -369,7 +369,7 @@ Deliver:
 - user creation/linking;
 - session/token issuing;
 - authenticated `/api/v1/me`;
-- Flutter auth state.
+- React PWA auth state.
 
 Done when:
 
@@ -383,7 +383,7 @@ Deliver:
 - challenge details endpoint;
 - join endpoint;
 - room assignment logic;
-- Flutter active challenges screen;
+- React PWA active challenges screen;
 - challenge details screen;
 - room screen.
 
@@ -400,7 +400,7 @@ Deliver:
 - submission creation endpoint;
 - user's submission endpoint;
 - delete submission endpoint;
-- Flutter image picker;
+- browser image picker;
 - upload progress;
 - submitted photo preview;
 - delete/replace while submission phase is open.
@@ -418,7 +418,7 @@ Deliver:
 - vote creation endpoint;
 - self-vote protection;
 - repeated-pair avoidance;
-- Flutter voting screen.
+- React PWA voting screen.
 
 Done when:
 
@@ -430,7 +430,7 @@ Deliver:
 
 - simple pairwise win count;
 - room results endpoint;
-- Flutter results screen;
+- React PWA results screen;
 - empty states for low participation.
 
 Done when:
@@ -459,7 +459,7 @@ Recommended order:
 2. Database schema.
 3. Go API skeleton.
 4. Auth/session foundation.
-5. Flutter app shell and auth state.
+5. React PWA shell and auth state.
 6. Challenge list/details/join.
 7. Room screen.
 8. S3 upload and submission lifecycle.
@@ -472,7 +472,7 @@ Recommended order:
 These should be decided before or during implementation:
 
 1. Which OAuth provider must work first locally: Google, Yandex, or GitHub.
-2. Whether mobile auth uses browser redirect with deep links or a backend-issued code copied through local dev flow at first.
+2. Whether auth starts with HTTP-only browser sessions or a temporary dev-user flow.
 3. Exact room size for MVP.
 4. Whether challenge phase status is stored in DB or computed from dates.
 5. Whether replacing a photo creates a new submission version or updates the existing submission media.

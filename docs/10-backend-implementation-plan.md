@@ -4,7 +4,7 @@ Date: 2026-06-11
 
 This document is the working backend roadmap for Creative Gym MVP. It turns the
 product plan into concrete implementation steps for the Go API, PostgreSQL
-schema, local infrastructure, and future mobile integration.
+schema, local infrastructure, and future client integration.
 
 Read this after:
 
@@ -17,17 +17,20 @@ Read this after:
 
 ## Current Backend Status
 
-Backend code has not been created yet.
+The first backend slice exists in `apps/api`.
 
 The repository currently contains:
 
-- Flutter mobile app scaffold with mock data.
+- Go API with health/readiness endpoints.
+- PostgreSQL migrations and seed data.
+- Active challenge endpoints.
+- Join challenge and room detail endpoints.
+- Flutter prototype scaffold with mock data.
 - Product and architecture documentation.
-- Backend direction: Go REST API, PostgreSQL, S3-compatible storage later.
 
-The first backend goal is not the full MVP. The first goal is a clean local
-vertical slice that lets the mobile app fetch real active Weekly Workouts and
-open a backend-backed Gym Room.
+The next backend goal is not the full MVP. The next goal is to keep the API
+client-agnostic while the React PWA consumes the active Weekly Workouts, join,
+and Gym Room endpoints.
 
 ## Backend Goals
 
@@ -286,7 +289,7 @@ Keep `/healthz` outside versioning.
 Return stable machine-readable data. Avoid returning final UI copy such as
 `"Ostalos 3 dnya"` from the backend.
 
-The mobile app can format:
+The client can format:
 
 - deadline labels;
 - phase labels;
@@ -307,7 +310,7 @@ Use a consistent JSON shape:
 ```
 
 The first implementation can keep messages simple. Error `code` is the stable
-field mobile should rely on.
+field clients should rely on.
 
 ## First Slice API Contract
 
@@ -460,7 +463,7 @@ Important:
 
 - one user must not join two rooms for the same challenge;
 - room capacity must not be exceeded under concurrent requests;
-- repeated join calls should be idempotent from the mobile app perspective.
+- repeated join calls should be idempotent from the client perspective.
 
 ## Implementation Milestones
 
@@ -542,19 +545,19 @@ Done when:
 - repeated join returns the same room;
 - room details show participant count.
 
-### Milestone B6: Mobile API Integration
+### Milestone B6: React PWA API Integration
 
 Deliver:
 
-- mobile config for API base URL;
-- HTTP client using `dio`;
-- challenge repository replacing mocks;
-- room repository replacing mocks for joined rooms;
+- web config for API base URL;
+- typed API client;
+- challenge queries using the Go API;
+- room queries and join mutations using the Go API;
 - loading/error states.
 
 Done when:
 
-- Flutter app renders active challenges from Go API;
+- React PWA renders active challenges from Go API;
 - user can join and open a real backend room.
 
 ### Milestone B7: OAuth Foundation
@@ -569,7 +572,7 @@ Deliver:
 
 Done when:
 
-- mobile can call protected endpoints as a real signed-in user.
+- the PWA can call protected endpoints as a real signed-in user.
 
 ### Milestone B8: Photo Submission
 

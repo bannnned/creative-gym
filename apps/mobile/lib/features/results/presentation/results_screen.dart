@@ -1,40 +1,80 @@
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
+import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:creative_gym_mobile/features/results/data/mock_room_results.dart';
 import 'package:creative_gym_mobile/features/results/domain/room_result.dart';
-import 'package:creative_gym_mobile/features/rooms/data/mock_gym_rooms.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
+import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class ResultsScreen extends StatelessWidget {
+class ResultsScreen extends StatefulWidget {
   const ResultsScreen({super.key, required this.roomId, this.demoMode = false});
 
   final String roomId;
   final bool demoMode;
 
   @override
+  State<ResultsScreen> createState() => _ResultsScreenState();
+}
+
+class _ResultsScreenState extends State<ResultsScreen> {
+  late Future<GymRoom?> _roomFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoom();
+  }
+
+  void _loadRoom() {
+    setState(() {
+      _roomFuture = appDependencies.rooms.getRoomById(widget.roomId);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final room = findMockGymRoomById(roomId);
-    final result = findMockRoomResultByRoomId(roomId);
+    final result = findMockRoomResultByRoomId(widget.roomId);
 
     return AppScaffold(
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Назад',
-          onPressed: () => context.go(AppRoutes.room(roomId)),
+          onPressed: () => context.go(AppRoutes.room(widget.roomId)),
           icon: const Icon(Icons.arrow_back),
         ),
         title: const Text('Results'),
       ),
-      body: room == null || result == null
-          ? const _MissingResultsRoom()
-          : !demoMode && !room.canViewResults
-          ? _ResultsUnavailable(room: room)
-          : _ResultsContent(room: room, result: result),
+      body: FutureBuilder<GymRoom?>(
+        future: _roomFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AsyncLoadingPanel(message: 'Загрузка результатов...');
+          }
+
+          if (snapshot.hasError) {
+            return AsyncErrorPanel(
+              message: snapshot.error.toString(),
+              onRetry: _loadRoom,
+            );
+          }
+
+          final room = snapshot.data;
+          if (room == null || result == null) {
+            return const _MissingResultsRoom();
+          }
+
+          if (!widget.demoMode && !room.canViewResults) {
+            return _ResultsUnavailable(room: room);
+          }
+
+          return _ResultsContent(room: room, result: result);
+        },
+      ),
     );
   }
 }

@@ -1,22 +1,42 @@
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
-import 'package:creative_gym_mobile/features/challenges/data/mock_weekly_workouts.dart';
+import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:creative_gym_mobile/features/challenges/domain/weekly_workout.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
+import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class ChallengeDetailsScreen extends StatelessWidget {
+class ChallengeDetailsScreen extends StatefulWidget {
   const ChallengeDetailsScreen({super.key, required this.challengeId});
 
   final String challengeId;
 
   @override
-  Widget build(BuildContext context) {
-    final workout = findMockWeeklyWorkoutById(challengeId);
+  State<ChallengeDetailsScreen> createState() => _ChallengeDetailsScreenState();
+}
 
+class _ChallengeDetailsScreenState extends State<ChallengeDetailsScreen> {
+  late Future<WeeklyWorkout?> _workoutFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWorkout();
+  }
+
+  void _loadWorkout() {
+    setState(() {
+      _workoutFuture = appDependencies.challenges.getWorkoutById(
+        widget.challengeId,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return AppScaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -26,20 +46,79 @@ class ChallengeDetailsScreen extends StatelessWidget {
         ),
         title: const Text('Challenge Details'),
       ),
-      body: workout == null
-          ? const _MissingChallenge()
-          : _ChallengeDetailsContent(workout: workout),
+      body: FutureBuilder<WeeklyWorkout?>(
+        future: _workoutFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AsyncLoadingPanel(message: 'Загрузка тренировки...');
+          }
+
+          if (snapshot.hasError) {
+            return AsyncErrorPanel(
+              message: snapshot.error.toString(),
+              onRetry: _loadWorkout,
+            );
+          }
+
+          final workout = snapshot.data;
+          if (workout == null) {
+            return const _MissingChallenge();
+          }
+
+          return _ChallengeDetailsContent(workout: workout);
+        },
+      ),
     );
   }
 }
 
-class _ChallengeDetailsContent extends StatelessWidget {
+class _ChallengeDetailsContent extends StatefulWidget {
   const _ChallengeDetailsContent({required this.workout});
 
   final WeeklyWorkout workout;
 
   @override
+  State<_ChallengeDetailsContent> createState() =>
+      _ChallengeDetailsContentState();
+}
+
+class _ChallengeDetailsContentState extends State<_ChallengeDetailsContent> {
+  bool _isJoining = false;
+
+  Future<void> _openGymRoom() async {
+    if (_isJoining) {
+      return;
+    }
+
+    setState(() => _isJoining = true);
+
+    try {
+      final room = await appDependencies.challenges.joinChallenge(
+        widget.workout.id,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      context.go(AppRoutes.room(room.id));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Не удалось открыть Gym Room: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isJoining = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final workout = widget.workout;
     final textTheme = Theme.of(context).textTheme;
 
     return ListView(
@@ -105,10 +184,17 @@ class _ChallengeDetailsContent extends StatelessWidget {
         const SizedBox(height: 18),
         _RulesSection(rules: workout.rules),
         const SizedBox(height: 26),
-        GlassButton(
-          onPressed: () => context.go(AppRoutes.room(workout.roomId)),
-          icon: workout.isJoined ? Icons.meeting_room : Icons.add,
-          label: workout.isJoined ? 'Открыть Gym Room' : 'Join Gym Room',
+        AbsorbPointer(
+          absorbing: _isJoining,
+          child: GlassButton(
+            onPressed: _openGymRoom,
+            icon: workout.isJoined ? Icons.meeting_room : Icons.add,
+            label: _isJoining
+                ? 'Открываем Gym Room...'
+                : workout.isJoined
+                ? 'Открыть Gym Room'
+                : 'Join Gym Room',
+          ),
         ),
       ],
     );

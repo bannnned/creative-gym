@@ -90,7 +90,7 @@ Initial variables:
 
 ## Docker
 
-Build locally:
+Build the backend-only image locally:
 
 ```powershell
 docker build -t creative-gym-api .
@@ -107,4 +107,12 @@ The image also contains the DB helper:
 ```powershell
 docker run --rm --env-file .env creative-gym-api /app/db migrate
 docker run --rm --env-file .env creative-gym-api /app/db seed
+```
+
+For the production app image that includes both React PWA and Go API, use the
+root repository `Dockerfile` instead:
+
+```powershell
+cd ..\..
+docker build -t creative-gym-app .
 ```

@@ -1,8 +1,9 @@
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
-import 'package:creative_gym_mobile/features/rooms/data/mock_gym_rooms.dart';
+import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
+import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
 import 'package:flutter/material.dart';
@@ -18,14 +19,25 @@ class UploadSubmissionScreen extends StatefulWidget {
 }
 
 class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
-  late final GymRoom? _room = findMockGymRoomById(widget.roomId);
-  late bool _hasSelectedPhoto = _room?.hasSubmission ?? false;
-  late bool _isSaved = _room?.hasSubmission ?? false;
+  late Future<GymRoom?> _roomFuture;
+  bool _hasSelectedPhoto = false;
+  bool _isSaved = false;
+  bool _photoStateReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoom();
+  }
+
+  void _loadRoom() {
+    setState(() {
+      _roomFuture = appDependencies.rooms.getRoomById(widget.roomId);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final room = _room;
-
     return AppScaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -35,18 +47,53 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
         ),
         title: const Text('Upload Photo'),
       ),
-      body: room == null
-          ? const _MissingUploadRoom()
-          : !room.canUpload
-          ? _UploadUnavailable(room: room)
-          : _UploadContent(
-              room: room,
-              hasSelectedPhoto: _hasSelectedPhoto,
-              isSaved: _isSaved,
-              onPickPhoto: _pickMockPhoto,
-              onSave: _saveMockPhoto,
-              onDelete: _deleteMockPhoto,
-            ),
+      body: FutureBuilder<GymRoom?>(
+        future: _roomFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AsyncLoadingPanel(message: 'Загрузка комнаты...');
+          }
+
+          if (snapshot.hasError) {
+            return AsyncErrorPanel(
+              message: snapshot.error.toString(),
+              onRetry: _loadRoom,
+            );
+          }
+
+          final room = snapshot.data;
+          if (room == null) {
+            return const _MissingUploadRoom();
+          }
+
+          if (!_photoStateReady) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || _photoStateReady) {
+                return;
+              }
+
+              setState(() {
+                _hasSelectedPhoto = room.hasSubmission;
+                _isSaved = room.hasSubmission;
+                _photoStateReady = true;
+              });
+            });
+          }
+
+          if (!room.canUpload) {
+            return _UploadUnavailable(room: room);
+          }
+
+          return _UploadContent(
+            room: room,
+            hasSelectedPhoto: _hasSelectedPhoto,
+            isSaved: _isSaved,
+            onPickPhoto: _pickMockPhoto,
+            onSave: _saveMockPhoto,
+            onDelete: _deleteMockPhoto,
+          );
+        },
+      ),
     );
   }
 
