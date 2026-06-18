@@ -36,7 +36,7 @@ func Load() Config {
 	return Config{
 		AppEnv:             getEnv("APP_ENV", defaultAppEnv),
 		HTTPAddr:           getHTTPAddr(),
-		DatabaseURL:        getEnv("DATABASE_URL", defaultDBURL),
+		DatabaseURL:        getEnvOrHex("DATABASE_URL", "DATABASE_URL_HEX", defaultDBURL),
 		DevUserID:          getEnv("DEV_USER_ID", defaultDevUserID),
 		CORSAllowedOrigins: splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		WebStaticDir:       os.Getenv("WEB_STATIC_DIR"),
@@ -95,18 +95,26 @@ func getEnv(key string, fallback string) string {
 	return value
 }
 
-func getEnvOrHex(key string, hexKey string) string {
+func getEnvOrHex(key string, hexKey string, fallback ...string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
 
 	encoded := strings.TrimSpace(os.Getenv(hexKey))
 	if encoded == "" {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+
 		return ""
 	}
 
 	decoded, err := hex.DecodeString(encoded)
 	if err != nil {
+		if len(fallback) > 0 {
+			return fallback[0]
+		}
+
 		return ""
 	}
 

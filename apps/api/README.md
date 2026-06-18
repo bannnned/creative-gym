@@ -89,6 +89,8 @@ Initial variables:
 - `APP_ENV` - local, test, staging, or production.
 - `HTTP_ADDR` - address for the HTTP server, defaults to `:8080`.
 - `DATABASE_URL` - PostgreSQL connection string.
+- `DATABASE_URL_HEX` - optional hex-encoded PostgreSQL connection string, used
+  when `DATABASE_URL` is empty.
 - `DEV_USER_ID` - temporary user id for pre-OAuth development.
 - `CORS_ALLOWED_ORIGINS` - comma-separated browser origins allowed by CORS.
 - `WEB_STATIC_DIR` - optional directory with the built React PWA.
@@ -115,9 +117,10 @@ PWA <- Go API media proxy <- S3
 
 The MVP upload limit is 10 MB. Accepted formats are JPEG, PNG, and WebP.
 
-If the deployment platform has trouble with special characters in secret values,
-leave the raw S3 key variable empty and use the matching `_HEX` variable. In
-PowerShell:
+If the deployment platform has trouble with spaces or special characters in
+secret values, leave the raw variable empty and use the matching `_HEX`
+variable. This works for `DATABASE_URL`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY`.
+In PowerShell:
 
 ```powershell
 [BitConverter]::ToString([Text.Encoding]::UTF8.GetBytes('secret-value')).Replace('-', '').ToLower()

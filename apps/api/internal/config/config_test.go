@@ -7,6 +7,7 @@ func TestLoadUsesDefaults(t *testing.T) {
 	t.Setenv("HTTP_ADDR", "")
 	t.Setenv("PORT", "")
 	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DATABASE_URL_HEX", "")
 	t.Setenv("DEV_USER_ID", "")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "")
 	t.Setenv("WEB_STATIC_DIR", "")
@@ -54,6 +55,7 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	t.Setenv("HTTP_ADDR", ":9090")
 	t.Setenv("PORT", "8081")
 	t.Setenv("DATABASE_URL", "postgres://example")
+	t.Setenv("DATABASE_URL_HEX", "")
 	t.Setenv("DEV_USER_ID", "11111111-1111-1111-1111-111111111111")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com, http://localhost:3000")
 	t.Setenv("WEB_STATIC_DIR", "/app/web")
@@ -101,6 +103,17 @@ func TestLoadUsesEnvironment(t *testing.T) {
 
 	if cfg.S3.Bucket != "creative-gym-media" {
 		t.Fatalf("S3.Bucket = %q, want creative-gym-media", cfg.S3.Bucket)
+	}
+}
+
+func TestLoadUsesHexEncodedDatabaseURL(t *testing.T) {
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DATABASE_URL_HEX", "706f7374677265733a2f2f6578616d706c65")
+
+	cfg := Load()
+
+	if cfg.DatabaseURL != "postgres://example" {
+		t.Fatalf("DatabaseURL = %q, want postgres://example", cfg.DatabaseURL)
 	}
 }
 
