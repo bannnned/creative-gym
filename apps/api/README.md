@@ -97,6 +97,10 @@ Initial variables:
 - `S3_BUCKET` - private bucket for uploaded media.
 - `S3_ACCESS_KEY` - S3 access key.
 - `S3_SECRET_KEY` - S3 secret key.
+- `S3_ACCESS_KEY_HEX` - optional hex-encoded access key, used when
+  `S3_ACCESS_KEY` is empty.
+- `S3_SECRET_KEY_HEX` - optional hex-encoded secret key, used when
+  `S3_SECRET_KEY` is empty.
 
 S3 is optional at startup. If it is not configured, the API still serves read
 routes and returns `object_storage_not_configured` for upload/media routes.
@@ -110,6 +114,14 @@ PWA <- Go API media proxy <- S3
 ```
 
 The MVP upload limit is 10 MB. Accepted formats are JPEG, PNG, and WebP.
+
+If the deployment platform has trouble with special characters in secret values,
+leave the raw S3 key variable empty and use the matching `_HEX` variable. In
+PowerShell:
+
+```powershell
+[BitConverter]::ToString([Text.Encoding]::UTF8.GetBytes('secret-value')).Replace('-', '').ToLower()
+```
 
 ## Docker
 

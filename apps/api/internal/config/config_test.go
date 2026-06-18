@@ -15,6 +15,8 @@ func TestLoadUsesDefaults(t *testing.T) {
 	t.Setenv("S3_BUCKET", "")
 	t.Setenv("S3_ACCESS_KEY", "")
 	t.Setenv("S3_SECRET_KEY", "")
+	t.Setenv("S3_ACCESS_KEY_HEX", "")
+	t.Setenv("S3_SECRET_KEY_HEX", "")
 
 	cfg := Load()
 
@@ -60,6 +62,8 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	t.Setenv("S3_BUCKET", "creative-gym-media")
 	t.Setenv("S3_ACCESS_KEY", "access-key")
 	t.Setenv("S3_SECRET_KEY", "secret-key")
+	t.Setenv("S3_ACCESS_KEY_HEX", "")
+	t.Setenv("S3_SECRET_KEY_HEX", "")
 
 	cfg := Load()
 
@@ -97,6 +101,23 @@ func TestLoadUsesEnvironment(t *testing.T) {
 
 	if cfg.S3.Bucket != "creative-gym-media" {
 		t.Fatalf("S3.Bucket = %q, want creative-gym-media", cfg.S3.Bucket)
+	}
+}
+
+func TestLoadUsesHexEncodedS3Keys(t *testing.T) {
+	t.Setenv("S3_ACCESS_KEY", "")
+	t.Setenv("S3_SECRET_KEY", "")
+	t.Setenv("S3_ACCESS_KEY_HEX", "6163636573732d6b6579")
+	t.Setenv("S3_SECRET_KEY_HEX", "7365637265742d6b6579")
+
+	cfg := Load()
+
+	if cfg.S3.AccessKey != "access-key" {
+		t.Fatalf("S3.AccessKey = %q, want access-key", cfg.S3.AccessKey)
+	}
+
+	if cfg.S3.SecretKey != "secret-key" {
+		t.Fatalf("S3.SecretKey = %q, want secret-key", cfg.S3.SecretKey)
 	}
 }
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"errors"
 	"os"
 	"strings"
@@ -43,8 +44,8 @@ func Load() Config {
 			Endpoint:  os.Getenv("S3_ENDPOINT"),
 			Region:    os.Getenv("S3_REGION"),
 			Bucket:    os.Getenv("S3_BUCKET"),
-			AccessKey: os.Getenv("S3_ACCESS_KEY"),
-			SecretKey: os.Getenv("S3_SECRET_KEY"),
+			AccessKey: getEnvOrHex("S3_ACCESS_KEY", "S3_ACCESS_KEY_HEX"),
+			SecretKey: getEnvOrHex("S3_SECRET_KEY", "S3_SECRET_KEY_HEX"),
 		},
 	}
 }
@@ -92,6 +93,24 @@ func getEnv(key string, fallback string) string {
 	}
 
 	return value
+}
+
+func getEnvOrHex(key string, hexKey string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+
+	encoded := strings.TrimSpace(os.Getenv(hexKey))
+	if encoded == "" {
+		return ""
+	}
+
+	decoded, err := hex.DecodeString(encoded)
+	if err != nil {
+		return ""
+	}
+
+	return string(decoded)
 }
 
 func getHTTPAddr() string {
