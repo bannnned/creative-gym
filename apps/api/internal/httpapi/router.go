@@ -58,13 +58,15 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 		writeAPIError,
 	)
 	var objectStore submissions.ObjectStore
-	if cfg.S3.Enabled() {
+	if cfg.S3.Complete() {
 		s3Store, err := storage.NewS3ObjectStore(context.Background(), cfg.S3)
 		if err != nil {
 			logger.Error("s3 client init failed", "error", err)
 		} else {
 			objectStore = s3Store
 		}
+	} else if cfg.S3.Enabled() {
+		logger.Error("s3 config is incomplete; upload routes will be unavailable")
 	}
 	submissionHandler := submissions.NewHandler(
 		submissions.NewRepository(dbPool),

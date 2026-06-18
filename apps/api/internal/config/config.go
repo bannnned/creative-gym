@@ -66,10 +66,6 @@ func (c Config) Validate() error {
 		return errors.New("DEV_USER_ID is required")
 	}
 
-	if err := c.S3.Validate(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -81,32 +77,12 @@ func (c S3Config) Enabled() bool {
 		c.SecretKey != ""
 }
 
-func (c S3Config) Validate() error {
-	if !c.Enabled() {
-		return nil
-	}
-
-	if c.Endpoint == "" {
-		return errors.New("S3_ENDPOINT is required when S3 is configured")
-	}
-
-	if c.Region == "" {
-		return errors.New("S3_REGION is required when S3 is configured")
-	}
-
-	if c.Bucket == "" {
-		return errors.New("S3_BUCKET is required when S3 is configured")
-	}
-
-	if c.AccessKey == "" {
-		return errors.New("S3_ACCESS_KEY is required when S3 is configured")
-	}
-
-	if c.SecretKey == "" {
-		return errors.New("S3_SECRET_KEY is required when S3 is configured")
-	}
-
-	return nil
+func (c S3Config) Complete() bool {
+	return c.Endpoint != "" &&
+		c.Region != "" &&
+		c.Bucket != "" &&
+		c.AccessKey != "" &&
+		c.SecretKey != ""
 }
 
 func getEnv(key string, fallback string) string {

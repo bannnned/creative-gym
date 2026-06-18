@@ -119,7 +119,7 @@ func TestValidateRequiresValues(t *testing.T) {
 	}
 }
 
-func TestValidateRequiresFullS3ConfigWhenPartiallyConfigured(t *testing.T) {
+func TestValidateAllowsPartialS3Config(t *testing.T) {
 	cfg := Config{
 		AppEnv:      "test",
 		HTTPAddr:    ":8080",
@@ -130,7 +130,15 @@ func TestValidateRequiresFullS3ConfigWhenPartiallyConfigured(t *testing.T) {
 		},
 	}
 
-	if err := cfg.Validate(); err == nil {
-		t.Fatal("Validate() error = nil, want error")
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+
+	if !cfg.S3.Enabled() {
+		t.Fatal("S3.Enabled() = false, want true")
+	}
+
+	if cfg.S3.Complete() {
+		t.Fatal("S3.Complete() = true, want false")
 	}
 }
