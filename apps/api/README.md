@@ -64,6 +64,10 @@ GET /api/v1/challenges/active
 GET /api/v1/challenges/{challengeId}
 POST /api/v1/challenges/{challengeId}/join
 GET /api/v1/rooms/{roomId}
+GET /api/v1/rooms/{roomId}/submissions/me
+POST /api/v1/rooms/{roomId}/submissions
+DELETE /api/v1/submissions/{submissionId}
+GET /api/v1/submissions/{submissionId}/media
 ```
 
 Before OAuth is implemented, API requests use a dev user. The server reads
@@ -87,6 +91,25 @@ Initial variables:
 - `DATABASE_URL` - PostgreSQL connection string.
 - `DEV_USER_ID` - temporary user id for pre-OAuth development.
 - `CORS_ALLOWED_ORIGINS` - comma-separated browser origins allowed by CORS.
+- `WEB_STATIC_DIR` - optional directory with the built React PWA.
+- `S3_ENDPOINT` - S3-compatible endpoint, for example `https://s3.twcstorage.ru`.
+- `S3_REGION` - storage region, for example `ru-1`.
+- `S3_BUCKET` - private bucket for uploaded media.
+- `S3_ACCESS_KEY` - S3 access key.
+- `S3_SECRET_KEY` - S3 secret key.
+
+S3 is optional at startup. If it is not configured, the API still serves read
+routes and returns `object_storage_not_configured` for upload/media routes.
+When any S3 variable is set, the full S3 variable set is required.
+
+Photo submissions use a private bucket:
+
+```txt
+PWA -> Go API -> S3
+PWA <- Go API media proxy <- S3
+```
+
+The MVP upload limit is 10 MB. Accepted formats are JPEG, PNG, and WebP.
 
 ## Docker
 

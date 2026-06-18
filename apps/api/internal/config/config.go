@@ -20,6 +20,15 @@ type Config struct {
 	DevUserID          string
 	CORSAllowedOrigins []string
 	WebStaticDir       string
+	S3                 S3Config
+}
+
+type S3Config struct {
+	Endpoint  string
+	Region    string
+	Bucket    string
+	AccessKey string
+	SecretKey string
 }
 
 func Load() Config {
@@ -30,6 +39,13 @@ func Load() Config {
 		DevUserID:          getEnv("DEV_USER_ID", defaultDevUserID),
 		CORSAllowedOrigins: splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		WebStaticDir:       os.Getenv("WEB_STATIC_DIR"),
+		S3: S3Config{
+			Endpoint:  os.Getenv("S3_ENDPOINT"),
+			Region:    os.Getenv("S3_REGION"),
+			Bucket:    os.Getenv("S3_BUCKET"),
+			AccessKey: os.Getenv("S3_ACCESS_KEY"),
+			SecretKey: os.Getenv("S3_SECRET_KEY"),
+		},
 	}
 }
 
@@ -48,6 +64,46 @@ func (c Config) Validate() error {
 
 	if c.DevUserID == "" {
 		return errors.New("DEV_USER_ID is required")
+	}
+
+	if err := c.S3.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c S3Config) Enabled() bool {
+	return c.Endpoint != "" ||
+		c.Region != "" ||
+		c.Bucket != "" ||
+		c.AccessKey != "" ||
+		c.SecretKey != ""
+}
+
+func (c S3Config) Validate() error {
+	if !c.Enabled() {
+		return nil
+	}
+
+	if c.Endpoint == "" {
+		return errors.New("S3_ENDPOINT is required when S3 is configured")
+	}
+
+	if c.Region == "" {
+		return errors.New("S3_REGION is required when S3 is configured")
+	}
+
+	if c.Bucket == "" {
+		return errors.New("S3_BUCKET is required when S3 is configured")
+	}
+
+	if c.AccessKey == "" {
+		return errors.New("S3_ACCESS_KEY is required when S3 is configured")
+	}
+
+	if c.SecretKey == "" {
+		return errors.New("S3_SECRET_KEY is required when S3 is configured")
 	}
 
 	return nil

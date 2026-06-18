@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 	"creative-gym/apps/api/internal/config"
 	"creative-gym/apps/api/internal/db"
 	"creative-gym/apps/api/internal/rooms"
+	"creative-gym/apps/api/internal/storage"
+	"creative-gym/apps/api/internal/submissions"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -54,11 +57,30 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 		writeJSON,
 		writeAPIError,
 	)
+	var objectStore submissions.ObjectStore
+	if cfg.S3.Enabled() {
+		s3Store, err := storage.NewS3ObjectStore(context.Background(), cfg.S3)
+		if err != nil {
+			logger.Error("s3 client init failed", "error", err)
+		} else {
+			objectStore = s3Store
+		}
+	}
+	submissionHandler := submissions.NewHandler(
+		submissions.NewRepository(dbPool),
+		objectStore,
+		writeJSON,
+		writeAPIError,
+	)
 
 	mux.HandleFunc("GET /api/v1/challenges/active", challengeHandler.ListActive)
 	mux.HandleFunc("GET /api/v1/challenges/{challengeId}", challengeHandler.GetByID)
 	mux.HandleFunc("POST /api/v1/challenges/{challengeId}/join", roomHandler.JoinChallenge)
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}", roomHandler.GetByID)
+	mux.HandleFunc("GET /api/v1/rooms/{roomId}/submissions/me", submissionHandler.GetMine)
+	mux.HandleFunc("POST /api/v1/rooms/{roomId}/submissions", submissionHandler.UploadMine)
+	mux.HandleFunc("DELETE /api/v1/submissions/{submissionId}", submissionHandler.DeleteMine)
+	mux.HandleFunc("GET /api/v1/submissions/{submissionId}/media", submissionHandler.GetMedia)
 
 	var handler http.Handler = mux
 	if cfg.WebStaticDir != "" {

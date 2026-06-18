@@ -10,6 +10,11 @@ func TestLoadUsesDefaults(t *testing.T) {
 	t.Setenv("DEV_USER_ID", "")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "")
 	t.Setenv("WEB_STATIC_DIR", "")
+	t.Setenv("S3_ENDPOINT", "")
+	t.Setenv("S3_REGION", "")
+	t.Setenv("S3_BUCKET", "")
+	t.Setenv("S3_ACCESS_KEY", "")
+	t.Setenv("S3_SECRET_KEY", "")
 
 	cfg := Load()
 
@@ -36,6 +41,10 @@ func TestLoadUsesDefaults(t *testing.T) {
 	if cfg.WebStaticDir != "" {
 		t.Fatalf("WebStaticDir = %q, want empty", cfg.WebStaticDir)
 	}
+
+	if cfg.S3.Enabled() {
+		t.Fatalf("S3.Enabled() = true, want false")
+	}
 }
 
 func TestLoadUsesEnvironment(t *testing.T) {
@@ -46,6 +55,11 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	t.Setenv("DEV_USER_ID", "11111111-1111-1111-1111-111111111111")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com, http://localhost:3000")
 	t.Setenv("WEB_STATIC_DIR", "/app/web")
+	t.Setenv("S3_ENDPOINT", "https://s3.example.com")
+	t.Setenv("S3_REGION", "ru-1")
+	t.Setenv("S3_BUCKET", "creative-gym-media")
+	t.Setenv("S3_ACCESS_KEY", "access-key")
+	t.Setenv("S3_SECRET_KEY", "secret-key")
 
 	cfg := Load()
 
@@ -76,6 +90,14 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	if cfg.WebStaticDir != "/app/web" {
 		t.Fatalf("WebStaticDir = %q, want /app/web", cfg.WebStaticDir)
 	}
+
+	if cfg.S3.Endpoint != "https://s3.example.com" {
+		t.Fatalf("S3.Endpoint = %q, want https://s3.example.com", cfg.S3.Endpoint)
+	}
+
+	if cfg.S3.Bucket != "creative-gym-media" {
+		t.Fatalf("S3.Bucket = %q, want creative-gym-media", cfg.S3.Bucket)
+	}
 }
 
 func TestLoadUsesPortWhenHTTPAddrIsMissing(t *testing.T) {
@@ -91,6 +113,22 @@ func TestLoadUsesPortWhenHTTPAddrIsMissing(t *testing.T) {
 
 func TestValidateRequiresValues(t *testing.T) {
 	cfg := Config{}
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() error = nil, want error")
+	}
+}
+
+func TestValidateRequiresFullS3ConfigWhenPartiallyConfigured(t *testing.T) {
+	cfg := Config{
+		AppEnv:      "test",
+		HTTPAddr:    ":8080",
+		DatabaseURL: "postgres://example",
+		DevUserID:   "11111111-1111-1111-1111-111111111111",
+		S3: S3Config{
+			Endpoint: "https://s3.example.com",
+		},
+	}
 
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("Validate() error = nil, want error")

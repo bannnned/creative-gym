@@ -11,8 +11,9 @@ This repository is a monorepo for the first Creative Gym photography slice.
 The existing Flutter app has local mock screens for login, Weekly Workouts,
 challenge details, Gym Room, upload, voting, and results. It is now treated as a
 prototype/reference while the MVP client moves to a React PWA in `apps/web`.
-OAuth, upload storage, backend voting rules, and full API-backed data are not
-connected yet.
+OAuth, backend voting rules, and full API-backed data are not connected yet.
+Photo submission upload is connected through the Go API and S3-compatible
+object storage.
 
 The Go API lives in `apps/api` and is being built as the backend slice for
 active challenges, joining Gym Rooms, and room details.
@@ -57,7 +58,7 @@ The next step is to implement the MVP plan in small reviewable milestones.
 5. Active challenges API.
 6. Join challenge and Gym Room API.
 7. React PWA integration with the Go API.
-8. OAuth, upload, voting, and results milestones.
+8. OAuth, voting, and results milestones.
 
 The detailed backend checklist lives in
 [docs/10-backend-implementation-plan.md](docs/10-backend-implementation-plan.md).
@@ -213,6 +214,11 @@ docker run --rm -p 8080:8080 `
   -e APP_ENV=local `
   -e DATABASE_URL="postgres://creative_gym:creative_gym@host.docker.internal:5432/creative_gym?sslmode=disable" `
   -e DEV_USER_ID=00000000-0000-0000-0000-000000000001 `
+  -e S3_ENDPOINT=https://s3.twcstorage.ru `
+  -e S3_REGION=ru-1 `
+  -e S3_BUCKET=creative-gym-media-prod `
+  -e S3_ACCESS_KEY=change-me `
+  -e S3_SECRET_KEY=change-me `
   creative-gym-app
 ```
 
@@ -239,3 +245,8 @@ the PWA for non-API routes, and exposes `/api/*` from the API.
 
 Use Timeweb Managed PostgreSQL with physical backups enabled and Timeweb
 S3-compatible Object Storage with a private bucket for uploaded photos.
+
+For Timeweb App Platform, keep the Dockerfile project directory as `/`, health
+check path as `/healthz`, and add the S3 variables from
+`deploy/timeweb/app-platform/env.example`. The frontend and API are served from
+the same container and same origin.
