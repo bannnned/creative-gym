@@ -17,12 +17,26 @@ import (
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger.Info("api process starting")
 
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {
 		logger.Error("invalid config", "error", err)
 		os.Exit(1)
 	}
+	logger.Info(
+		"config loaded",
+		"addr",
+		cfg.HTTPAddr,
+		"env",
+		cfg.AppEnv,
+		"web_static_dir_set",
+		cfg.WebStaticDir != "",
+		"s3_enabled",
+		cfg.S3.Enabled(),
+		"s3_complete",
+		cfg.S3.Complete(),
+	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
