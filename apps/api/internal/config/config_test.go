@@ -8,6 +8,13 @@ func TestLoadUsesDefaults(t *testing.T) {
 	t.Setenv("PORT", "")
 	t.Setenv("DATABASE_URL", "")
 	t.Setenv("DATABASE_URL_HEX", "")
+	t.Setenv("DB_HOST", "")
+	t.Setenv("DB_PORT", "")
+	t.Setenv("DB_USER", "")
+	t.Setenv("DB_PASSWORD", "")
+	t.Setenv("DB_PASSWORD_HEX", "")
+	t.Setenv("DB_NAME", "")
+	t.Setenv("DB_SSLMODE", "")
 	t.Setenv("DEV_USER_ID", "")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "")
 	t.Setenv("WEB_STATIC_DIR", "")
@@ -56,6 +63,13 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	t.Setenv("PORT", "8081")
 	t.Setenv("DATABASE_URL", "postgres://example")
 	t.Setenv("DATABASE_URL_HEX", "")
+	t.Setenv("DB_HOST", "")
+	t.Setenv("DB_PORT", "")
+	t.Setenv("DB_USER", "")
+	t.Setenv("DB_PASSWORD", "")
+	t.Setenv("DB_PASSWORD_HEX", "")
+	t.Setenv("DB_NAME", "")
+	t.Setenv("DB_SSLMODE", "")
 	t.Setenv("DEV_USER_ID", "11111111-1111-1111-1111-111111111111")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com, http://localhost:3000")
 	t.Setenv("WEB_STATIC_DIR", "/app/web")
@@ -114,6 +128,25 @@ func TestLoadUsesHexEncodedDatabaseURL(t *testing.T) {
 
 	if cfg.DatabaseURL != "postgres://example" {
 		t.Fatalf("DatabaseURL = %q, want postgres://example", cfg.DatabaseURL)
+	}
+}
+
+func TestLoadBuildsDatabaseURLFromParts(t *testing.T) {
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DATABASE_URL_HEX", "")
+	t.Setenv("DB_HOST", "db.example.com")
+	t.Setenv("DB_PORT", "5433")
+	t.Setenv("DB_USER", "gen_user")
+	t.Setenv("DB_PASSWORD", "")
+	t.Setenv("DB_PASSWORD_HEX", "7365637265742d70617373")
+	t.Setenv("DB_NAME", "default_db")
+	t.Setenv("DB_SSLMODE", "require")
+
+	cfg := Load()
+
+	want := "host=db.example.com port=5433 user=gen_user password=secret-pass dbname=default_db sslmode=require"
+	if cfg.DatabaseURL != want {
+		t.Fatalf("DatabaseURL = %q, want %q", cfg.DatabaseURL, want)
 	}
 }
 

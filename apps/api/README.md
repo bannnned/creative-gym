@@ -91,6 +91,9 @@ Initial variables:
 - `DATABASE_URL` - PostgreSQL connection string.
 - `DATABASE_URL_HEX` - optional hex-encoded PostgreSQL connection string, used
   when `DATABASE_URL` is empty.
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_PASSWORD_HEX`, `DB_NAME`,
+  `DB_SSLMODE` - optional split PostgreSQL connection variables, used when
+  `DATABASE_URL` and `DATABASE_URL_HEX` are empty.
 - `DEV_USER_ID` - temporary user id for pre-OAuth development.
 - `CORS_ALLOWED_ORIGINS` - comma-separated browser origins allowed by CORS.
 - `WEB_STATIC_DIR` - optional directory with the built React PWA.
@@ -124,6 +127,18 @@ In PowerShell:
 
 ```powershell
 [BitConverter]::ToString([Text.Encoding]::UTF8.GetBytes('secret-value')).Replace('-', '').ToLower()
+```
+
+For Timeweb App Platform, prefer split database variables over a single
+`DATABASE_URL`:
+
+```txt
+DB_HOST=...
+DB_PORT=5432
+DB_USER=gen_user
+DB_PASSWORD_HEX=...
+DB_NAME=default_db
+DB_SSLMODE=require
 ```
 
 ## Docker

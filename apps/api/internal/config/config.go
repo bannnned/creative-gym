@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 )
@@ -36,7 +37,7 @@ func Load() Config {
 	return Config{
 		AppEnv:             getEnv("APP_ENV", defaultAppEnv),
 		HTTPAddr:           getHTTPAddr(),
-		DatabaseURL:        getEnvOrHex("DATABASE_URL", "DATABASE_URL_HEX", defaultDBURL),
+		DatabaseURL:        getDatabaseURL(),
 		DevUserID:          getEnv("DEV_USER_ID", defaultDevUserID),
 		CORSAllowedOrigins: splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		WebStaticDir:       os.Getenv("WEB_STATIC_DIR"),
@@ -95,6 +96,40 @@ func getEnv(key string, fallback string) string {
 	return value
 }
 
+func getDatabaseURL() string {
+	if value := getEnvOrHex("DATABASE_URL", "DATABASE_URL_HEX"); value != "" {
+		return value
+	}
+
+	host := firstEnv("DB_HOST", "POSTGRESQL_HOST")
+	if host == "" {
+		return defaultDBURL
+	}
+
+	port := firstEnv("DB_PORT", "POSTGRESQL_PORT")
+	if port == "" {
+		port = "5432"
+	}
+
+	user := firstEnv("DB_USER", "POSTGRESQL_USER")
+	password := firstEnvOrHex(
+		[]string{"DB_PASSWORD", "POSTGRESQL_PASSWORD"},
+		[]string{"DB_PASSWORD_HEX", "POSTGRESQL_PASSWORD_HEX"},
+	)
+	dbname := firstEnv("DB_NAME", "POSTGRESQL_DBNAME")
+	sslmode := getEnv("DB_SSLMODE", "require")
+
+	return fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		host,
+		port,
+		user,
+		password,
+		dbname,
+		sslmode,
+	)
+}
+
 func getEnvOrHex(key string, hexKey string, fallback ...string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -119,6 +154,38 @@ func getEnvOrHex(key string, hexKey string, fallback ...string) string {
 	}
 
 	return string(decoded)
+}
+
+func firstEnv(keys ...string) string {
+	for _, key := range keys {
+		if value := os.Getenv(key); value != "" {
+			return value
+		}
+	}
+
+	return ""
+}
+
+func firstEnvOrHex(rawKeys []string, hexKeys []string) string {
+	for _, key := range rawKeys {
+		if value := os.Getenv(key); value != "" {
+			return value
+		}
+	}
+
+	for _, key := range hexKeys {
+		encoded := strings.TrimSpace(os.Getenv(key))
+		if encoded == "" {
+			continue
+		}
+
+		decoded, err := hex.DecodeString(encoded)
+		if err == nil {
+			return string(decoded)
+		}
+	}
+
+	return ""
 }
 
 func getHTTPAddr() string {
