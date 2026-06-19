@@ -25,7 +25,7 @@ FROM alpine:3.22
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates curl && adduser -D -H -u 10001 appuser
+RUN apk add --no-cache ca-certificates curl
 
 COPY --from=api-build /out/api /app/api
 COPY --from=api-build /out/db /app/db
@@ -34,9 +34,8 @@ COPY --from=api-build /src/apps/api/seeds /app/seeds
 COPY --from=web-build /src/apps/web/dist /app/web
 
 ENV HTTP_ADDR=:8080
+ENV PORT=8080
 ENV WEB_STATIC_DIR=/app/web
-
-USER appuser
 
 EXPOSE 8080
 
