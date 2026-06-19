@@ -25,7 +25,7 @@ FROM alpine:3.22
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates curl
+RUN apk add --no-cache ca-certificates curl && adduser -D -H -u 10001 appuser
 
 COPY --from=api-build /out/api /app/api
 COPY --from=api-build /out/db /app/db
@@ -34,9 +34,12 @@ COPY --from=api-build /src/apps/api/seeds /app/seeds
 COPY --from=web-build /src/apps/web/dist /app/web
 
 ENV HTTP_ADDR=:8080
-ENV PORT=8080
 ENV WEB_STATIC_DIR=/app/web
 
+USER appuser
+
 EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=6 CMD curl -fsS http://127.0.0.1:8080/healthz || exit 1
 
 CMD ["/app/api"]
