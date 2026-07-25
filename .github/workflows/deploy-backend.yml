@@ -129,6 +129,11 @@ jobs:
             exit 1
           fi
 
+          # Caddy resolves the Docker service name to a container IP. Reload it
+          # after recreating API so it cannot keep proxying the removed IP.
+          docker compose -f "$compose_file" exec -T caddy \
+            caddy reload --config /etc/caddy/Caddyfile
+
           docker compose -f "$compose_file" ps
           docker compose -f "$compose_file" logs --since 2m api |
             grep -E 'config loaded|s3_enabled|s3_complete|s3 client' || true
@@ -156,6 +161,30 @@ jobs:
           done
 
           test "$deployed" = true
+
+      - name: Verify public API
+        env:
+          API_URL: https://creative.gde-kofe.ru
+        run: |
+          ready=false
+          for attempt in $(seq 1 20); do
+            ready_status="$(curl --silent --show-error --output /dev/null \
+              --write-out '%{http_code}' "$API_URL/readyz" || true)"
+            auth_status="$(curl --silent --show-error --output /dev/null \
+              --write-out '%{http_code}' "$API_URL/api/v1/auth/me" || true)"
+
+            if [ "$ready_status" = 200 ] && [ "$auth_status" = 401 ]; then
+              ready=true
+              break
+            fi
+
+            sleep 2
+          done
+
+          if [ "$ready" != true ]; then
+            echo "Public API verification failed: ready=$ready_status auth=$auth_status"
+            exit 1
+          fi
 
       - name: Remove SSH key
         if: always()
