@@ -79,6 +79,13 @@ jobs:
           project_dir="/opt/creative-gym"
           compose_file="docker-compose.vps.yml"
 
+          # SSH non-login shells can inherit a different Docker context than
+          # the interactive VPS shell. Pin deployment to the system daemon
+          # that owns the public creative-gym containers.
+          unset DOCKER_CONTEXT
+          export DOCKER_HOST=unix:///var/run/docker.sock
+          test -S /var/run/docker.sock
+
           if [ "$(hostname)" != "msk-1-vm-11ml" ]; then
             echo "Unexpected VPS host: $(hostname)"
             exit 1
