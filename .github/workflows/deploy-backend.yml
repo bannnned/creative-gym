@@ -129,10 +129,9 @@ jobs:
             exit 1
           fi
 
-          # Caddy resolves the Docker service name to a container IP. Reload it
-          # after recreating API so it cannot keep proxying the removed IP.
-          docker compose -f "$compose_file" exec -T caddy \
-            caddy reload --config /etc/caddy/Caddyfile
+          # Caddy can retain the previous container IP across a config reload.
+          # Restart it after recreating API so Docker DNS is resolved afresh.
+          docker compose -f "$compose_file" restart caddy
 
           docker compose -f "$compose_file" ps
           docker compose -f "$compose_file" logs --since 2m api |
