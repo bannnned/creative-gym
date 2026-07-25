@@ -86,12 +86,27 @@ jobs:
           export DOCKER_HOST=unix:///var/run/docker.sock
           test -S /var/run/docker.sock
 
+          expected_docker_id="7a532156-a5da-40ba-825f-d4b34e41a16f"
+          actual_docker_id="$(docker info --format '{{.ID}}')"
+          if [ "$actual_docker_id" != "$expected_docker_id" ]; then
+            echo "Unexpected Docker daemon: $actual_docker_id"
+            echo "Expected public Docker daemon: $expected_docker_id"
+            exit 1
+          fi
+
           if [ "$(hostname)" != "msk-1-vm-11ml" ]; then
             echo "Unexpected VPS host: $(hostname)"
             exit 1
           fi
 
           cd "$project_dir"
+
+          echo "Deployment target:"
+          echo "  host=$(hostname)"
+          echo "  docker_id=$actual_docker_id"
+          echo "  docker_root=$(docker info --format '{{.DockerRootDir}}')"
+          echo "Containers before deployment:"
+          docker compose -f "$compose_file" ps
 
           if ! git diff --quiet || ! git diff --cached --quiet; then
             echo "Tracked changes exist on the VPS. Refusing to overwrite them."
@@ -111,6 +126,12 @@ jobs:
             api
           docker compose -f "$compose_file" run --rm api /app/db migrate
           docker compose -f "$compose_file" up -d --no-deps --force-recreate api
+
+          api_created="$(
+            docker compose -f "$compose_file" ps -q api |
+              xargs docker inspect --format '{{.Created}}'
+          )"
+          echo "API container recreated at $api_created"
 
           ready=false
           for attempt in $(seq 1 30); do
@@ -156,6 +177,12 @@ jobs:
           # Recreate Caddy so Docker republishes ports 80/443 and resolves the
           # new API container address instead of retaining the previous one.
           docker compose -f "$compose_file" up -d --no-deps --force-recreate caddy
+
+          caddy_created="$(
+            docker compose -f "$compose_file" ps -q caddy |
+              xargs docker inspect --format '{{.Created}}'
+          )"
+          echo "Caddy container recreated at $caddy_created"
 
           proxy_ready=false
           for attempt in $(seq 1 10); do
