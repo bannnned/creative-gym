@@ -129,9 +129,9 @@ jobs:
             exit 1
           fi
 
-          # Caddy can retain the previous container IP across a config reload.
-          # Restart it after recreating API so Docker DNS is resolved afresh.
-          docker compose -f "$compose_file" restart caddy
+          # Recreate Caddy so Docker republishes ports 80/443 and resolves the
+          # new API container address instead of retaining the previous one.
+          docker compose -f "$compose_file" up -d --no-deps --force-recreate caddy
 
           docker compose -f "$compose_file" ps
           docker compose -f "$compose_file" logs --since 2m api |
