@@ -150,6 +150,30 @@ jobs:
           # new API container address instead of retaining the previous one.
           docker compose -f "$compose_file" up -d --no-deps --force-recreate caddy
 
+          proxy_ready=false
+          for attempt in $(seq 1 10); do
+            proxy_version="$(
+              curl --silent --show-error --insecure \
+                --resolve creative.gde-kofe.ru:443:127.0.0.1 \
+                https://creative.gde-kofe.ru/versionz ||
+                true
+            )"
+            if printf '%s' "$proxy_version" |
+              grep -q "\"commit\":\"$deploy_sha\""; then
+              proxy_ready=true
+              break
+            fi
+
+            sleep 2
+            docker compose -f "$compose_file" restart caddy
+          done
+
+          if [ "$proxy_ready" != true ]; then
+            echo "Caddy did not switch to commit $deploy_sha. Got: $proxy_version"
+            docker compose -f "$compose_file" logs --tail 100 caddy
+            exit 1
+          fi
+
           docker compose -f "$compose_file" ps
           docker compose -f "$compose_file" logs --since 2m api |
             grep -E 'config loaded|s3_enabled|s3_complete|s3 client' || true
