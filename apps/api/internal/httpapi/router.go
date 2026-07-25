@@ -25,6 +25,10 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
+type versionResponse struct {
+	Commit string `json:"commit"`
+}
+
 type errorResponse struct {
 	Error apiError `json:"error"`
 }
@@ -53,6 +57,9 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 		}
 
 		writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
+	})
+	mux.HandleFunc("GET /versionz", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, versionResponse{Commit: cfg.BuildCommit})
 	})
 	mux.HandleFunc("POST /api/v1/auth/guest", authHandler.CreateGuestSession)
 	mux.HandleFunc("GET /api/v1/auth/me", authHandler.GetCurrentSession)
@@ -152,6 +159,7 @@ func spaHandler(staticDir string, apiHandler http.Handler) http.Handler {
 func isAPIPath(path string) bool {
 	return path == "/healthz" ||
 		path == "/readyz" ||
+		path == "/versionz" ||
 		path == "/api" ||
 		strings.HasPrefix(path, "/api/")
 }

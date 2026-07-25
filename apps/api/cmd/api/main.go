@@ -15,11 +15,14 @@ import (
 	"creative-gym/apps/api/internal/httpapi"
 )
 
+var buildCommit = "dev"
+
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	logger.Info("api process starting")
 
 	cfg := config.Load()
+	cfg.BuildCommit = buildCommit
 	if err := cfg.Validate(); err != nil {
 		logger.Error("invalid config", "error", err)
 		os.Exit(1)

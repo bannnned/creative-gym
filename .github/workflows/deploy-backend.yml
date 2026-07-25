@@ -63,9 +63,9 @@ jobs:
 
       - name: Deploy exact commit
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_PORT: ${{ secrets.VPS_PORT }}
-          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: 147.45.99.61
+          VPS_PORT: "22"
+          VPS_USER: root
         run: |
           test -n "$VPS_HOST"
           test -n "$VPS_USER"
@@ -78,6 +78,11 @@ jobs:
           deploy_sha="$1"
           project_dir="/opt/creative-gym"
           compose_file="docker-compose.vps.yml"
+
+          if [ "$(hostname)" != "msk-1-vm-11ml" ]; then
+            echo "Unexpected VPS host: $(hostname)"
+            exit 1
+          fi
 
           cd "$project_dir"
 
@@ -93,7 +98,10 @@ jobs:
           git merge --ff-only "$deploy_sha"
 
           docker compose -f "$compose_file" config --quiet
-          docker compose -f "$compose_file" build --pull api
+          docker compose -f "$compose_file" build \
+            --pull \
+            --build-arg BUILD_SHA="$deploy_sha" \
+            api
           docker compose -f "$compose_file" run --rm api /app/db migrate
           docker compose -f "$compose_file" up -d --no-deps --force-recreate api
 
@@ -112,6 +120,15 @@ jobs:
             echo "API did not become ready after deployment."
             docker compose -f "$compose_file" ps
             docker compose -f "$compose_file" logs --tail 150 api
+            exit 1
+          fi
+
+          version="$(
+            docker compose -f "$compose_file" exec -T api \
+              wget -qO- http://127.0.0.1:8080/versionz
+          )"
+          if ! printf '%s' "$version" | grep -q "\"commit\":\"$deploy_sha\""; then
+            echo "Expected deployed commit $deploy_sha, got: $version"
             exit 1
           fi
 
@@ -171,8 +188,11 @@ jobs:
               --write-out '%{http_code}' "$API_URL/readyz" || true)"
             auth_status="$(curl --silent --show-error --output /dev/null \
               --write-out '%{http_code}' "$API_URL/api/v1/auth/me" || true)"
+            version="$(curl --silent --show-error "$API_URL/versionz" || true)"
 
-            if [ "$ready_status" = 200 ] && [ "$auth_status" = 401 ]; then
+            if [ "$ready_status" = 200 ] &&
+              [ "$auth_status" = 401 ] &&
+              printf '%s' "$version" | grep -q "\"commit\":\"$GITHUB_SHA\""; then
               ready=true
               break
             fi
@@ -181,7 +201,7 @@ jobs:
           done
 
           if [ "$ready" != true ]; then
-            echo "Public API verification failed: ready=$ready_status auth=$auth_status"
+            echo "Public API verification failed: ready=$ready_status auth=$auth_status version=$version"
             exit 1
           fi
 

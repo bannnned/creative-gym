@@ -8,7 +8,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /out/api ./cmd/api
+ARG BUILD_SHA=dev
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags "-X main.buildCommit=${BUILD_SHA}" \
+    -o /out/api ./cmd/api
 RUN CGO_ENABLED=0 GOOS=linux go build -o /out/db ./cmd/db
 
 FROM alpine:3.22

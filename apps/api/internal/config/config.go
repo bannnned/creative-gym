@@ -22,6 +22,7 @@ type Config struct {
 	DevUserID          string
 	CORSAllowedOrigins []string
 	WebStaticDir       string
+	BuildCommit        string
 	S3                 S3Config
 }
 

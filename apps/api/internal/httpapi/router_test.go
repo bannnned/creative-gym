@@ -39,6 +39,28 @@ func TestHealthz(t *testing.T) {
 	}
 }
 
+func TestVersionz(t *testing.T) {
+	router := NewRouter(config.Config{
+		AppEnv:      "test",
+		HTTPAddr:    ":0",
+		DatabaseURL: "postgres://example",
+		DevUserID:   "00000000-0000-0000-0000-000000000001",
+		BuildCommit: "test-commit",
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), &pgxpool.Pool{})
+
+	request := httptest.NewRequest(http.MethodGet, "/versionz", nil)
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	if body := response.Body.String(); body != "{\"commit\":\"test-commit\"}\n" {
+		t.Fatalf("body = %q, want build commit", body)
+	}
+}
+
 func TestSPAFallbackServesIndexForClientRoute(t *testing.T) {
 	staticDir := t.TempDir()
 	indexHTML := []byte("<!doctype html><title>Creative Gym</title><div id=\"root\"></div>")
