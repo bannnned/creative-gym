@@ -332,7 +332,7 @@ Preferred direction:
 
 Deliver:
 
-- `apps/web`;
+- `apps/mobile`;
 - `apps/api`;
 - `docker-compose.yml`;
 - PostgreSQL;
@@ -369,7 +369,7 @@ Deliver:
 - user creation/linking;
 - session/token issuing;
 - authenticated `/api/v1/me`;
-- React PWA auth state.
+- Flutter app auth state.
 
 Done when:
 
@@ -383,7 +383,7 @@ Deliver:
 - challenge details endpoint;
 - join endpoint;
 - room assignment logic;
-- React PWA active challenges screen;
+- Flutter app active challenges screen;
 - challenge details screen;
 - room screen.
 
@@ -400,7 +400,7 @@ Deliver:
 - submission creation endpoint;
 - user's submission endpoint;
 - delete submission endpoint;
-- browser image picker;
+- image picker in the Flutter app;
 - upload progress;
 - submitted photo preview;
 - delete/replace while submission phase is open.
@@ -418,7 +418,7 @@ Deliver:
 - vote creation endpoint;
 - self-vote protection;
 - repeated-pair avoidance;
-- React PWA voting screen.
+- Flutter app voting screen.
 
 Done when:
 
@@ -430,7 +430,7 @@ Deliver:
 
 - simple pairwise win count;
 - room results endpoint;
-- React PWA results screen;
+- Flutter app results screen;
 - empty states for low participation.
 
 Done when:
@@ -459,7 +459,7 @@ Recommended order:
 2. Database schema.
 3. Go API skeleton.
 4. Auth/session foundation.
-5. React PWA shell and auth state.
+5. Flutter app shell and auth state.
 6. Challenge list/details/join.
 7. Room screen.
 8. S3 upload and submission lifecycle.

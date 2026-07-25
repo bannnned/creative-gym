@@ -10,7 +10,7 @@ Gym MVP on Timeweb Cloud.
 Start simple:
 
 ```text
-React PWA
+Flutter mobile app
   -> Go REST API on Timeweb App Platform
   -> Timeweb Managed PostgreSQL
   -> Timeweb S3-compatible Object Storage
@@ -24,7 +24,7 @@ or email jobs become real needs.
 
 Use these Timeweb Cloud services for the MVP:
 
-- App Platform for one Dockerfile app that serves both the React PWA and Go API.
+- App Platform for one Dockerfile app that serves the Go API for the mobile app (the bundled React PWA is a legacy leftover).
 - Managed PostgreSQL for relational data.
 - S3-compatible Object Storage with a private bucket for uploaded photos.
 
@@ -53,10 +53,10 @@ Expected app shape:
 
 ```text
 one Dockerfile app
-  builds apps/web React PWA
+  builds apps/web React PWA (archived legacy bundle)
   builds apps/api Go API
   serves /api/* from Go
-  serves React static assets for /*
+  serves the legacy React static assets for /*
 ```
 
 ### Alternative: Small Cloud Server
@@ -359,13 +359,13 @@ GET /v1/me
 
 Preferred MVP flow:
 
-1. PWA asks API to create an upload target.
+1. Mobile app asks API to create an upload target.
 2. API validates room/challenge phase.
 3. API creates a private S3 object key.
-4. PWA uploads directly to S3 with a signed URL, or uploads through API for
+4. Mobile app uploads directly to S3 with a signed URL, or uploads through API for
    the very first implementation.
 5. API stores `submission` and `media_objects` rows.
-6. PWA reads previews through API-issued signed read URLs.
+6. Mobile app reads previews through API-issued signed read URLs.
 
 Direct signed upload scales better. API-proxy upload is simpler for the first
 vertical slice. Pick API-proxy first if speed matters more than upload
@@ -381,7 +381,7 @@ minio
 api
 ```
 
-The Flutter prototype should point to:
+The Flutter app should point to:
 
 ```text
 http://10.0.2.2:8080
@@ -389,13 +389,14 @@ http://10.0.2.2:8080
 
 when running on the Android emulator.
 
-The React PWA should point to:
+The archived React PWA pointed to:
 
 ```text
 http://localhost:8080
 ```
 
-or use the same origin when the API serves the built PWA.
+or used the same origin when the API served the built PWA; this is kept only
+as historical reference.
 
 ## First Backend Milestone
 
@@ -407,7 +408,7 @@ Build this before real OAuth/upload:
 4. migrations for `challenges`.
 5. seed 2-3 active Weekly Workouts.
 6. `GET /v1/challenges/active`.
-7. React PWA reads active workouts from API data.
+7. Flutter app reads active workouts from API data.
 
 That gives the app its first real backend-backed screen while keeping scope
 small.

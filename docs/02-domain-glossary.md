@@ -2,7 +2,7 @@
 
 ## Creative Gym
 
-The product itself: a web-first app for training creativity through recurring challenges.
+The product itself: a native mobile app for training creativity through recurring challenges.
 
 ## Challenge
 

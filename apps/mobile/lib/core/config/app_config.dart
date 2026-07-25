@@ -13,7 +13,7 @@ class AppConfig {
   const AppConfig({
     this.mode = DataSourceMode.mock,
     this.apiBaseUrl = 'http://localhost:8080',
-    this.devUserId = 'dev-user-1',
+    this.devUserId = '00000000-0000-0000-0000-000000000001',
   });
 
   final DataSourceMode mode;
@@ -31,7 +31,7 @@ class AppConfig {
     );
     const devUserId = String.fromEnvironment(
       'DEV_USER_ID',
-      defaultValue: 'dev-user-1',
+      defaultValue: '00000000-0000-0000-0000-000000000001',
     );
 
     return AppConfig(

@@ -2,7 +2,16 @@
 
 ## Stack
 
-Primary client:
+Primary client (native mobile app):
+
+- Flutter
+- Dart
+- `go_router`
+- Riverpod
+- `dio`
+
+Archived web experiment (kept in `apps/web` as historical reference, not the
+product client):
 
 - React
 - TypeScript
@@ -10,13 +19,6 @@ Primary client:
 - React Router
 - TanStack Query
 - PWA manifest and service worker
-
-Prototype/native reference:
-
-- Flutter
-- Dart
-- `go_router`
-- `dio`
 
 Backend:
 
@@ -42,31 +44,12 @@ apps/
 docs/
 ```
 
-Suggested React PWA structure:
+The Flutter app structure in `apps/mobile` follows
+`08-mobile-architecture-plan.md` (feature-first folders, `core/`, `app/`,
+`features/`, `shared/`).
 
-```txt
-apps/web/
-  src/
-    app/
-      router.tsx
-      providers.tsx
-      layout/
-    shared/
-      api/
-      config/
-      ui/
-      utils/
-    features/
-      challenges/
-      rooms/
-      submissions/
-      voting/
-      results/
-      auth/
-    main.tsx
-  public/
-    manifest.webmanifest
-```
+The archived React PWA structure in `apps/web` is documented in
+`12-react-pwa-plan.md` for historical reference.
 
 Suggested Go structure:
 
@@ -104,7 +87,7 @@ apps/api/
 9. Model media generically even though MVP supports only photos.
 10. Use environment variables for config.
 11. Keep Timeweb Cloud compatibility in mind for App Platform, PostgreSQL, S3-compatible object storage, and Go deployment.
-12. Keep the Go API client-agnostic so React PWA, iOS, Android, or future clients can use the same contract.
+12. Keep the Go API client-agnostic so the Flutter app, the archived web client, or future clients can use the same contract.
 
 ## Auth Rule
 

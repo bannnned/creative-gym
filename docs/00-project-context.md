@@ -2,7 +2,7 @@
 
 ## Product
 
-Creative Gym is a web-first app for creative challenges.
+Creative Gym is a native mobile app for creative challenges, built with Flutter for Android and iOS and backed by a Go REST API.
 
 The core metaphor is a gym for creativity: users train creative shape by joining weekly creative workouts.
 
@@ -11,7 +11,7 @@ The MVP focuses only on photography. Future directions may include music and vid
 ## Core Loop
 
 1. A weekly photo workout becomes active.
-2. A user opens the PWA and sees active challenges.
+2. A user opens the app and sees active challenges.
 3. The user joins a challenge.
 4. The backend assigns the user to a small gym room.
 5. During the submission phase, the user uploads exactly one photo.
@@ -35,16 +35,29 @@ The app should encourage consistency, practice, and reflection.
 
 ## First Implementation Goal
 
-The first implementation should be a clean full-stack monorepo scaffold with one
-working vertical slice:
+The first implementation is a clean full-stack monorepo with one working
+vertical slice:
 
-- React PWA can fetch active photo challenges.
+- Flutter app can fetch active photo challenges from the Go API.
 - User can open a challenge.
 - User can join a gym room.
 - Room screen displays data returned by the backend.
 
 Photo upload via S3 signed URLs is the next step after the first slice.
 
-The existing Flutter app remains a prototype/reference. Native iOS and Android
-apps can be added later against the same Go API if the product needs app store
-distribution, native push notifications, or deeper device integration.
+The Flutter app in `apps/mobile` is the product client. The archived React PWA
+in `apps/web` remains in the repository as historical reference; it is no
+longer part of the product direction.
+
+## Current Backend Environment
+
+The first remote backend is running on a Timeweb Cloud VPS using Docker
+Compose:
+
+```text
+Flutter -> https://creative.gde-kofe.ru -> Caddy -> Go API -> PostgreSQL
+```
+
+The operational source of truth, including the VPS directory, container
+topology, health checks, and incident notes, is
+[`docs/13-backend-operations.md`](13-backend-operations.md).

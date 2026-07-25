@@ -2,7 +2,11 @@
 
 Date: 2026-06-18
 
-This document defines the new frontend direction for Creative Gym MVP.
+Status: archived direction. The MVP client is now the native Flutter app in
+`apps/mobile`; see `08-mobile-architecture-plan.md`. This document is kept as
+historical reference for the archived React PWA experiment in `apps/web`.
+
+This document defines the former frontend direction for Creative Gym MVP.
 
 ## Decision
 

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:creative_gym_mobile/core/config/app_config.dart';
 import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:dio/dio.dart';
@@ -8,8 +10,7 @@ class ApiClient {
         BaseOptions(
           baseUrl: config.apiBaseUrl,
           connectTimeout: const Duration(seconds: 8),
-          receiveTimeout: const Duration(seconds: 8),
-          headers: const {'Content-Type': 'application/json'},
+          receiveTimeout: const Duration(seconds: 15),
         ),
       ) {
     _dio.interceptors.add(
@@ -36,8 +37,44 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
   }) async {
-    final response = await _dio.post<Map<String, dynamic>>(path, data: body);
+    final response = await _dio.post<Map<String, dynamic>>(
+      path,
+      data: body,
+      options: Options(contentType: Headers.jsonContentType),
+    );
     return response.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required FormData formData,
+    ProgressCallback? onSendProgress,
+  }) async {
+    final response = await _dio.post<Map<String, dynamic>>(
+      path,
+      data: formData,
+      onSendProgress: onSendProgress,
+      options: Options(
+        sendTimeout: const Duration(seconds: 90),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
+    return response.data ?? const {};
+  }
+
+  Future<Uint8List> getBytes(String path) async {
+    final response = await _dio.get<List<int>>(
+      path,
+      options: Options(
+        responseType: ResponseType.bytes,
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
+    return Uint8List.fromList(response.data ?? const []);
+  }
+
+  Future<void> delete(String path) async {
+    await _dio.delete<void>(path);
   }
 
   DioException _mapError(DioException error) {

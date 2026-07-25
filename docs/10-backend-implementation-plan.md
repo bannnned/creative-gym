@@ -25,12 +25,12 @@ The repository currently contains:
 - PostgreSQL migrations and seed data.
 - Active challenge endpoints.
 - Join challenge and room detail endpoints.
-- Flutter prototype scaffold with mock data.
+- Flutter app scaffold with mock data (primary client).
 - Product and architecture documentation.
 
 The next backend goal is not the full MVP. The next goal is to keep the API
-client-agnostic while the React PWA consumes the active Weekly Workouts, join,
-and Gym Room endpoints.
+client-agnostic while the Flutter app (the primary client) consumes the active
+Weekly Workouts, join, and Gym Room endpoints.
 
 ## Backend Goals
 
@@ -545,19 +545,19 @@ Done when:
 - repeated join returns the same room;
 - room details show participant count.
 
-### Milestone B6: React PWA API Integration
+### Milestone B6: Flutter App API Integration
 
 Deliver:
 
-- web config for API base URL;
-- typed API client;
+- app config for API base URL;
+- API client with `dio`;
 - challenge queries using the Go API;
 - room queries and join mutations using the Go API;
 - loading/error states.
 
 Done when:
 
-- React PWA renders active challenges from Go API;
+- Flutter app renders active challenges from Go API;
 - user can join and open a real backend room.
 
 ### Milestone B7: OAuth Foundation
@@ -572,7 +572,7 @@ Deliver:
 
 Done when:
 
-- the PWA can call protected endpoints as a real signed-in user.
+- the app can call protected endpoints as a real signed-in user.
 
 ### Milestone B8: Photo Submission
 
@@ -637,11 +637,11 @@ Do not update docs for internal refactors that do not change behavior or setup.
 
 ## Immediate Next Step
 
-Start Milestone B2:
+Milestones B2 through B8 are done: the API serves active challenges, join,
+room details, and photo submission, and is deployed. The real next steps:
 
-1. Create `apps/api`.
-2. Add Go module.
-3. Add config loader.
-4. Add HTTP server.
-5. Add `/healthz`.
-6. Verify with `go test ./...` and a local run.
+1. Polish Flutter app integration with the existing API endpoints (replace
+   remaining mock data sources with API repositories).
+2. Milestone B7: OAuth foundation (one provider working locally,
+   session/token issuing, authenticated `/api/v1/me`).
+3. Milestone B9: voting and results.

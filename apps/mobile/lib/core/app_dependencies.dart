@@ -8,6 +8,12 @@ import 'package:creative_gym_mobile/features/rooms/data/api_rooms_repository.dar
 import 'package:creative_gym_mobile/features/rooms/data/fallback_rooms_repository.dart';
 import 'package:creative_gym_mobile/features/rooms/data/mock_rooms_repository.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/rooms_repository.dart';
+import 'package:creative_gym_mobile/features/submissions/data/api_submissions_repository.dart';
+import 'package:creative_gym_mobile/features/submissions/data/image_picker_photo_picker.dart';
+import 'package:creative_gym_mobile/features/submissions/data/mock_photo_picker.dart';
+import 'package:creative_gym_mobile/features/submissions/data/mock_submissions_repository.dart';
+import 'package:creative_gym_mobile/features/submissions/domain/photo_picker.dart';
+import 'package:creative_gym_mobile/features/submissions/domain/submissions_repository.dart';
 
 late AppDependencies appDependencies;
 
@@ -20,11 +26,15 @@ class AppDependencies {
     required this.config,
     required this.challenges,
     required this.rooms,
+    required this.submissions,
+    required this.photoPicker,
   });
 
   final AppConfig config;
   final ChallengesRepository challenges;
   final RoomsRepository rooms;
+  final SubmissionsRepository submissions;
+  final PhotoPicker photoPicker;
 
   factory AppDependencies.create({AppConfig? config}) {
     final resolvedConfig = config ?? AppConfig.fromEnvironment();
@@ -33,6 +43,8 @@ class AppDependencies {
     final apiChallenges = ApiChallengesRepository(apiClient);
     final mockRooms = const MockRoomsRepository();
     final apiRooms = ApiRoomsRepository(apiClient);
+    final mockSubmissions = MockSubmissionsRepository();
+    final apiSubmissions = ApiSubmissionsRepository(apiClient);
 
     final challenges = switch (resolvedConfig.mode) {
       DataSourceMode.mock => mockChallenges,
@@ -52,10 +64,24 @@ class AppDependencies {
       ),
     };
 
+    final submissions = switch (resolvedConfig.mode) {
+      DataSourceMode.mock => mockSubmissions,
+      DataSourceMode.api ||
+      DataSourceMode.apiWithMockFallback => apiSubmissions,
+    };
+
+    final photoPicker = switch (resolvedConfig.mode) {
+      DataSourceMode.mock => const MockPhotoPicker(),
+      DataSourceMode.api ||
+      DataSourceMode.apiWithMockFallback => ImagePickerPhotoPicker(),
+    };
+
     return AppDependencies(
       config: resolvedConfig,
       challenges: challenges,
       rooms: rooms,
+      submissions: submissions,
+      photoPicker: photoPicker,
     );
   }
 }

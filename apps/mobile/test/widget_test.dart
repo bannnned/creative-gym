@@ -166,7 +166,7 @@ void main() {
     expect(find.text('Demo shortcuts'), findsOneWidget);
   });
 
-  testWidgets('opens upload flow and saves demo photo', (tester) async {
+  testWidgets('opens upload flow and uploads a photo', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -175,20 +175,20 @@ void main() {
     await tester.tap(find.text('Добавить фото'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Upload Photo'), findsOneWidget);
+    expect(find.text('Загрузка фото'), findsOneWidget);
     expect(find.text('Фото не выбрано'), findsOneWidget);
 
     await tester.tap(find.text('Выбрать фото'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Фото выбрано'), findsOneWidget);
-    expect(find.text('Сохранить'), findsOneWidget);
+    expect(find.text('Фото готово к загрузке'), findsOneWidget);
+    expect(find.text('Загрузить фото'), findsOneWidget);
 
-    await tester.tap(find.text('Сохранить'));
+    await tester.tap(find.text('Загрузить фото'));
     await tester.pumpAndSettle();
 
     expect(find.text('Фото загружено'), findsOneWidget);
-    expect(find.text('Фото сохранено в демо-режиме.'), findsOneWidget);
+    expect(find.text('Фото загружено и сохранено.'), findsOneWidget);
   });
 
   testWidgets('opens voting flow and records a demo vote', (tester) async {

@@ -1,6 +1,6 @@
 # Creative Gym
 
-Creative Gym is a web-first app for creative workouts.
+Creative Gym is a native mobile app (Flutter, Android/iOS) for creative workouts, backed by a Go REST API.
 
 The first product direction is photography: users join weekly photo challenges, enter small gym rooms, submit one photo, vote after the deadline, and see results. The product should feel like a calm training habit for creativity, not a popularity contest.
 
@@ -8,15 +8,18 @@ The first product direction is photography: users join weekly photo challenges, 
 
 This repository is a monorepo for the first Creative Gym photography slice.
 
-The existing Flutter app has local mock screens for login, Weekly Workouts,
-challenge details, Gym Room, upload, voting, and results. It is now treated as a
-prototype/reference while the MVP client moves to a React PWA in `apps/web`.
-OAuth, backend voting rules, and full API-backed data are not connected yet.
-Photo submission upload is connected through the Go API and S3-compatible
-object storage.
+The Flutter app in `apps/mobile` is the primary and only MVP client
+(Android/iOS). It has screens for login, Weekly Workouts, challenge details,
+Gym Room, upload, voting, and results. OAuth, backend voting rules, and full
+API-backed data are not connected yet. Photo submission upload is connected
+through the Go API and S3-compatible object storage.
 
-The Go API lives in `apps/api` and is being built as the backend slice for
-active challenges, joining Gym Rooms, and room details.
+The React PWA in `apps/web` is an archived web experiment: the code stays in
+the repository untouched, but it is no longer the product client.
+
+The Go API lives in `apps/api` and is the client-agnostic backend serving the
+mobile app: active challenges, joining Gym Rooms, room details, and photo
+submissions.
 
 ## Documentation
 
@@ -28,17 +31,18 @@ active challenges, joining Gym Rooms, and room details.
 - [MVP Boundaries](docs/05-mvp-boundaries.md) - what the first implementation should and should not include.
 - [Collaboration Rules](docs/06-collaboration-rules.md) - how to work on this repo with AI or humans.
 - [MVP Plan](docs/07-mvp-plan.md) - planned product scope, milestones, and implementation order.
-- [Mobile Architecture Plan](docs/08-mobile-architecture-plan.md) - archived Flutter prototype direction.
+- [Mobile Architecture Plan](docs/08-mobile-architecture-plan.md) - active plan for the Flutter app, the primary MVP client.
 - [Timeweb Backend And Database Plan](docs/09-timeweb-backend-plan.md) - recommended production backend shape.
 - [Backend Implementation Plan](docs/10-backend-implementation-plan.md) - working backend roadmap, API contracts, and implementation milestones.
 - [Backend Deploy Plan](docs/11-backend-deploy-plan.md) - first Timeweb deployment shape and cost tradeoffs.
-- [React PWA Plan](docs/12-react-pwa-plan.md) - web-first frontend plan and Timeweb deployment direction.
+- [React PWA Plan](docs/12-react-pwa-plan.md) - archived web frontend direction, kept as historical reference.
+- [Backend Operations](docs/13-backend-operations.md) - current Timeweb VPS topology, verified state, health checks, and runbooks.
 
 ## North Star
 
 Build the smallest clean full-stack vertical slice:
 
-1. React PWA scaffold.
+1. Flutter app scaffold.
 2. Go API scaffold.
 3. PostgreSQL schema and migrations.
 4. OAuth account flow.
@@ -47,17 +51,19 @@ Build the smallest clean full-stack vertical slice:
 7. Join challenge flow that opens a gym room.
 8. Submission, anonymous pairwise voting, and room results flow.
 
-The next step is to implement the MVP plan in small reviewable milestones.
+Done so far: the Go API through photo submission and the first Timeweb
+deployment. Next: mobile API integration polish, OAuth (milestone B7), and
+voting/results (milestone B9).
 
 ## Current Implementation Order
 
-1. React PWA scaffold.
+1. Flutter app scaffold with local mock screens.
 2. Go API skeleton with `/healthz`.
 3. Local PostgreSQL and migrations.
 4. Seed active Weekly Workouts.
 5. Active challenges API.
 6. Join challenge and Gym Room API.
-7. React PWA integration with the Go API.
+7. Flutter app integration with the Go API (active challenges, join, room, submission).
 8. OAuth, voting, and results milestones.
 
 The detailed backend checklist lives in
@@ -67,25 +73,20 @@ The detailed backend checklist lives in
 
 ```text
 apps/
-  api/     Go REST API
-  web/     React PWA
-  mobile/  Flutter prototype/reference
+  api/     Go REST API (backend for the mobile app)
+  mobile/  Flutter app (primary MVP client, Android/iOS)
+  web/     React PWA (archived web experiment, code kept untouched)
 docs/      product, architecture, and deployment notes
 ```
 
 ## Common Commands
 
-Install web dependencies:
-
-```powershell
-cd apps/web
-npm install
-```
-
-Run Flutter prototype checks:
+Run Flutter app checks:
 
 ```powershell
 cd apps/mobile
+flutter pub get
+flutter analyze
 flutter test
 ```
 
@@ -96,22 +97,16 @@ cd apps/api
 go test ./...
 ```
 
-Run web checks after `apps/web` is scaffolded:
+Web checks (archived client, only if touching `apps/web`):
 
 ```powershell
 cd apps/web
+npm install
 npm test
 npm run build
 ```
 
-Short shell form:
-
-```sh
-cd apps/api && go test ./...
-cd apps/web && npm run build
-```
-
-## Run Flutter Prototype In Android Studio
+## Run The Flutter App In Android Studio
 
 Open this folder in Android Studio:
 
@@ -140,10 +135,10 @@ an Android emulator talking to a local API:
 flutter run --dart-define=DATA_SOURCE_MODE=apiWithMockFallback --dart-define=API_BASE_URL=http://10.0.2.2:8080
 ```
 
-Later, for a hosted Timeweb API:
+For the currently deployed Timeweb API:
 
 ```powershell
-flutter run --dart-define=DATA_SOURCE_MODE=api --dart-define=API_BASE_URL=https://api-domain
+flutter run --dart-define=DATA_SOURCE_MODE=api --dart-define=API_BASE_URL=https://creative.gde-kofe.ru --dart-define=DEV_USER_ID=00000000-0000-0000-0000-000000000001
 ```
 
 Useful checks:
@@ -153,7 +148,7 @@ flutter analyze
 flutter test
 ```
 
-## Run Local React PWA Loop
+## Run Local Mobile + API Loop
 
 From the repository root, start PostgreSQL:
 
@@ -175,18 +170,12 @@ Start the API:
 go run ./cmd/api
 ```
 
-In another terminal, start the PWA:
+Then run the Flutter app against the local API (see the Flutter section above
+for full run options). For an Android emulator:
 
 ```powershell
-cd apps/web
-npm install
-npm run dev
-```
-
-Open:
-
-```text
-http://127.0.0.1:5173
+cd apps/mobile
+flutter run --dart-define=DATA_SOURCE_MODE=apiWithMockFallback --dart-define=API_BASE_URL=http://10.0.2.2:8080
 ```
 
 The first local loop is:
@@ -195,11 +184,14 @@ The first local loop is:
 /login -> /challenges -> /challenges/:challengeId -> join -> /rooms/:roomId
 ```
 
-Vite proxies `/api`, `/healthz`, and `/readyz` to `http://localhost:8080`.
+(The archived React PWA previously ran this loop via `npm run dev` in
+`apps/web`; that dev-server loop is no longer part of the product setup.)
 
 ## Run Production Image Locally
 
-The root `Dockerfile` builds both the React PWA and Go API into one image.
+The root `Dockerfile` builds the Go API into one image and also bundles the
+archived React PWA, a leftover of the archived web direction. The mobile app
+consumes the API directly.
 
 Build:
 
@@ -228,10 +220,11 @@ Open:
 http://localhost:8080
 ```
 
-The same container serves the React PWA and the Go API:
+The same container serves the Go API used by the mobile app; the bundled
+React PWA is a leftover of the archived web direction:
 
 ```text
-/                 React PWA
+/                 archived React PWA (legacy)
 /api/v1/*         Go API
 /healthz          liveness
 /readyz           database readiness
@@ -239,14 +232,16 @@ The same container serves the React PWA and the Go API:
 
 ## Deploy To Timeweb
 
-Keep GitHub as one monorepo. The preferred MVP deployment is one Timeweb App
-Platform Dockerfile app that builds the React PWA, builds the Go API, serves
-the PWA for non-API routes, and exposes `/api/*` from the API.
+The current backend is deployed to a Timeweb Cloud VPS with Docker Compose:
+Caddy on public ports 80/443, the Go API on private port 8080, and PostgreSQL
+16 on private port 5432. The public API is:
 
-Use Timeweb Managed PostgreSQL with physical backups enabled and Timeweb
-S3-compatible Object Storage with a private bucket for uploaded photos.
+```text
+https://creative.gde-kofe.ru
+```
 
-For Timeweb App Platform, keep the Dockerfile project directory as `/`, health
-check path as `/healthz`, and add the S3 variables from
-`deploy/timeweb/app-platform/env.example`. The frontend and API are served from
-the same container and same origin.
+The deployed project directory is `/opt/creative-gym`, and the VPS uses
+`docker-compose.vps.yml`. See
+[Backend Operations](docs/13-backend-operations.md) for the current topology,
+health checks, diagnostics, and known issues. App Platform remains a historical
+alternative documented in the deployment plan, not the active environment.

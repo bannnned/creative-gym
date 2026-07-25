@@ -2,6 +2,13 @@
 
 Date: 2026-06-18
 
+> Status update, 2026-07-24: the first backend was deployed to a Timeweb Cloud
+> VPS with Docker Compose, Caddy, the Go API, and PostgreSQL. The App Platform
+> recommendation below is retained as historical planning context, not the
+> active environment. See
+> [`docs/13-backend-operations.md`](13-backend-operations.md) for the current
+> deployment facts and runbook.
+
 This document describes the first practical deployment shape for Creative Gym.
 
 ## Current Backend Surface
@@ -34,8 +41,8 @@ Use Timeweb App Platform first:
 ```text
 Timeweb App Platform
   -> one Dockerfile app
-  -> React PWA static files
-  -> Go API process
+  -> Go API process (serves the mobile app)
+  -> legacy React PWA static files (archived web direction)
   -> Timeweb Managed PostgreSQL
   -> Timeweb private S3-compatible bucket
 ```
@@ -106,11 +113,11 @@ deploy/timeweb/app-platform/env.example
 
 The production Dockerfile should:
 
-1. Build `apps/web`.
+1. Build `apps/web` (archived PWA bundle, kept only as a legacy leftover).
 2. Build `apps/api`.
 3. Copy the PWA build output into the API runtime image.
 4. Start the Go API.
-5. Serve React routes with an `index.html` fallback.
+5. Serve legacy React routes with an `index.html` fallback.
 
 This keeps App Platform deployment simple: one app, one domain, one container.
 
