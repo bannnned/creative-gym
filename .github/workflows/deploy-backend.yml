@@ -95,7 +95,7 @@ jobs:
           docker compose -f "$compose_file" config --quiet
           docker compose -f "$compose_file" build --pull api
           docker compose -f "$compose_file" run --rm api /app/db migrate
-          docker compose -f "$compose_file" up -d --no-deps api
+          docker compose -f "$compose_file" up -d --no-deps --force-recreate api
 
           ready=false
           for attempt in $(seq 1 30); do
@@ -111,6 +111,20 @@ jobs:
           if [ "$ready" != true ]; then
             echo "API did not become ready after deployment."
             docker compose -f "$compose_file" ps
+            docker compose -f "$compose_file" logs --tail 150 api
+            exit 1
+          fi
+
+          auth_status="$(
+            {
+              docker compose -f "$compose_file" exec -T api \
+                wget -S -O /dev/null http://127.0.0.1:8080/api/v1/auth/me 2>&1 ||
+                true
+            } |
+              awk '/HTTP\// { status = $2 } END { print status }'
+          )"
+          if [ "$auth_status" != 401 ]; then
+            echo "Expected the deployed auth route to return 401, got: ${auth_status:-missing}"
             docker compose -f "$compose_file" logs --tail 150 api
             exit 1
           fi
