@@ -11,8 +11,8 @@ enum DataSourceMode {
 
 class AppConfig {
   const AppConfig({
-    this.mode = DataSourceMode.mock,
-    this.apiBaseUrl = 'http://localhost:8080',
+    this.mode = DataSourceMode.api,
+    this.apiBaseUrl = 'https://creative.gde-kofe.ru',
     this.devUserId = '00000000-0000-0000-0000-000000000001',
   });
 
@@ -23,11 +23,11 @@ class AppConfig {
   factory AppConfig.fromEnvironment() {
     const modeName = String.fromEnvironment(
       'DATA_SOURCE_MODE',
-      defaultValue: 'mock',
+      defaultValue: 'api',
     );
     const apiBaseUrl = String.fromEnvironment(
       'API_BASE_URL',
-      defaultValue: 'http://localhost:8080',
+      defaultValue: 'https://creative.gde-kofe.ru',
     );
     const devUserId = String.fromEnvironment(
       'DEV_USER_ID',
@@ -43,9 +43,10 @@ class AppConfig {
 
   static DataSourceMode _parseMode(String value) {
     return switch (value) {
+      'mock' => DataSourceMode.mock,
       'api' => DataSourceMode.api,
       'apiWithMockFallback' => DataSourceMode.apiWithMockFallback,
-      _ => DataSourceMode.mock,
+      _ => DataSourceMode.api,
     };
   }
 }

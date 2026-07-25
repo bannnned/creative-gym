@@ -16,14 +16,15 @@ const (
 )
 
 type Config struct {
-	AppEnv             string
-	HTTPAddr           string
-	DatabaseURL        string
-	DevUserID          string
-	CORSAllowedOrigins []string
-	WebStaticDir       string
-	BuildCommit        string
-	S3                 S3Config
+	AppEnv              string
+	HTTPAddr            string
+	DatabaseURL         string
+	DevUserID           string
+	AdminAccessCodeHash string
+	CORSAllowedOrigins  []string
+	WebStaticDir        string
+	BuildCommit         string
+	S3                  S3Config
 }
 
 type S3Config struct {
@@ -36,12 +37,13 @@ type S3Config struct {
 
 func Load() Config {
 	return Config{
-		AppEnv:             getEnv("APP_ENV", defaultAppEnv),
-		HTTPAddr:           getHTTPAddr(),
-		DatabaseURL:        getDatabaseURL(),
-		DevUserID:          getEnv("DEV_USER_ID", defaultDevUserID),
-		CORSAllowedOrigins: splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
-		WebStaticDir:       os.Getenv("WEB_STATIC_DIR"),
+		AppEnv:              getEnv("APP_ENV", defaultAppEnv),
+		HTTPAddr:            getHTTPAddr(),
+		DatabaseURL:         getDatabaseURL(),
+		DevUserID:           getEnv("DEV_USER_ID", defaultDevUserID),
+		AdminAccessCodeHash: strings.ToLower(strings.TrimSpace(os.Getenv("ADMIN_ACCESS_CODE_HASH"))),
+		CORSAllowedOrigins:  splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
+		WebStaticDir:        os.Getenv("WEB_STATIC_DIR"),
 		S3: S3Config{
 			Endpoint:  os.Getenv("S3_ENDPOINT"),
 			Region:    os.Getenv("S3_REGION"),

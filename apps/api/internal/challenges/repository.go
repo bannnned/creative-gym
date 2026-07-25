@@ -5,12 +5,48 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ErrNotFound = errors.New("challenge not found")
+
+type Mutation struct {
+	Title              string
+	Theme              string
+	Description        string
+	Rules              []string
+	SubmissionStartsAt time.Time
+	SubmissionEndsAt   time.Time
+	VotingStartsAt     time.Time
+	VotingEndsAt       time.Time
+}
+
+func (m Mutation) Validate() error {
+	if strings.TrimSpace(m.Title) == "" {
+		return errors.New("title is required")
+	}
+	if strings.TrimSpace(m.Theme) == "" {
+		return errors.New("theme is required")
+	}
+	if strings.TrimSpace(m.Description) == "" {
+		return errors.New("description is required")
+	}
+	if !m.SubmissionStartsAt.Before(m.SubmissionEndsAt) {
+		return errors.New("submission start must be before submission end")
+	}
+	if m.VotingStartsAt.Before(m.SubmissionEndsAt) {
+		return errors.New("voting cannot start before submissions end")
+	}
+	if !m.VotingStartsAt.Before(m.VotingEndsAt) {
+		return errors.New("voting start must be before voting end")
+	}
+
+	return nil
+}
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -22,7 +58,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 
 func (r *Repository) ListActive(ctx context.Context, viewerUserID string) ([]Challenge, error) {
 	rows, err := r.pool.Query(ctx, challengeSelectSQL(`
-WHERE c.status IN ('scheduled', 'submitting', 'voting')
+WHERE c.status <> 'cancelled'
 ORDER BY c.submission_starts_at ASC
 `), viewerUserID)
 	if err != nil {
@@ -92,7 +128,13 @@ SELECT
     LIMIT 1
   ) AS viewer_room_id,
   cc.updated_at AS cover_updated_at,
-  COALESCE(c.created_by_user_id = $1, false) AS viewer_can_edit
+  (
+    COALESCE(c.created_by_user_id = $1, false)
+    OR EXISTS (
+      SELECT 1 FROM users viewer
+      WHERE viewer.id = $1 AND viewer.is_admin = true
+    )
+  ) AS viewer_can_edit
 FROM challenges c
 LEFT JOIN challenge_covers cc ON cc.challenge_id = c.id
 ` + whereClause
@@ -153,4 +195,147 @@ func scanChallenge(row challengeScanner) (Challenge, error) {
 
 	challenge.ViewerHasJoined = challenge.ViewerRoomID != nil
 	return challenge, nil
+}
+
+func (r *Repository) Create(
+	ctx context.Context,
+	createdByUserID string,
+	mutation Mutation,
+) (Challenge, error) {
+	if err := mutation.Validate(); err != nil {
+		return Challenge{}, err
+	}
+
+	rulesJSON, err := json.Marshal(mutation.Rules)
+	if err != nil {
+		return Challenge{}, fmt.Errorf("encode challenge rules: %w", err)
+	}
+
+	var challengeID string
+	err = r.pool.QueryRow(ctx, `
+INSERT INTO challenges (
+  created_by_user_id,
+  kind,
+  title,
+  theme,
+  description,
+  rules,
+  status,
+  submission_starts_at,
+  submission_ends_at,
+  voting_starts_at,
+  voting_ends_at
+)
+VALUES ($1, 'photo', $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id::text
+`,
+		createdByUserID,
+		strings.TrimSpace(mutation.Title),
+		strings.TrimSpace(mutation.Theme),
+		strings.TrimSpace(mutation.Description),
+		rulesJSON,
+		statusAt(time.Now(), mutation),
+		mutation.SubmissionStartsAt,
+		mutation.SubmissionEndsAt,
+		mutation.VotingStartsAt,
+		mutation.VotingEndsAt,
+	).Scan(&challengeID)
+	if err != nil {
+		return Challenge{}, fmt.Errorf("create challenge: %w", err)
+	}
+
+	return r.GetByID(ctx, challengeID, createdByUserID)
+}
+
+func (r *Repository) Update(
+	ctx context.Context,
+	challengeID string,
+	viewerUserID string,
+	mutation Mutation,
+) (Challenge, error) {
+	if err := mutation.Validate(); err != nil {
+		return Challenge{}, err
+	}
+
+	rulesJSON, err := json.Marshal(mutation.Rules)
+	if err != nil {
+		return Challenge{}, fmt.Errorf("encode challenge rules: %w", err)
+	}
+
+	command, err := r.pool.Exec(ctx, `
+UPDATE challenges
+SET
+  title = $3,
+  theme = $4,
+  description = $5,
+  rules = $6,
+  status = $7,
+  submission_starts_at = $8,
+  submission_ends_at = $9,
+  voting_starts_at = $10,
+  voting_ends_at = $11,
+  updated_at = now()
+WHERE id = $1
+  AND EXISTS (
+    SELECT 1 FROM users
+    WHERE id = $2 AND is_admin = true
+  )
+`,
+		challengeID,
+		viewerUserID,
+		strings.TrimSpace(mutation.Title),
+		strings.TrimSpace(mutation.Theme),
+		strings.TrimSpace(mutation.Description),
+		rulesJSON,
+		statusAt(time.Now(), mutation),
+		mutation.SubmissionStartsAt,
+		mutation.SubmissionEndsAt,
+		mutation.VotingStartsAt,
+		mutation.VotingEndsAt,
+	)
+	if err != nil {
+		return Challenge{}, fmt.Errorf("update challenge: %w", err)
+	}
+	if command.RowsAffected() != 1 {
+		return Challenge{}, ErrNotFound
+	}
+
+	return r.GetByID(ctx, challengeID, viewerUserID)
+}
+
+func (r *Repository) Archive(
+	ctx context.Context,
+	challengeID string,
+	viewerUserID string,
+) error {
+	command, err := r.pool.Exec(ctx, `
+UPDATE challenges
+SET status = 'cancelled', updated_at = now()
+WHERE id = $1
+  AND EXISTS (
+    SELECT 1 FROM users
+    WHERE id = $2 AND is_admin = true
+  )
+`, challengeID, viewerUserID)
+	if err != nil {
+		return fmt.Errorf("archive challenge: %w", err)
+	}
+	if command.RowsAffected() != 1 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+func statusAt(now time.Time, mutation Mutation) string {
+	switch {
+	case now.Before(mutation.SubmissionStartsAt):
+		return "scheduled"
+	case now.Before(mutation.SubmissionEndsAt):
+		return "submitting"
+	case now.Before(mutation.VotingEndsAt):
+		return "voting"
+	default:
+		return "finished"
+	}
 }

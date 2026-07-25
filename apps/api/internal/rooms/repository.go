@@ -110,7 +110,10 @@ func ensureJoinableChallenge(ctx context.Context, tx pgx.Tx, challengeID string)
 SELECT EXISTS (
   SELECT 1
   FROM challenges
-  WHERE id = $1 AND status IN ('scheduled', 'submitting', 'voting')
+  WHERE id = $1
+    AND status <> 'cancelled'
+    AND now() >= submission_starts_at
+    AND now() < submission_ends_at
 )`, challengeID).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("check challenge joinability: %w", err)

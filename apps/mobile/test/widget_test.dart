@@ -1,12 +1,13 @@
 import 'package:creative_gym_mobile/app/creative_gym_app.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
+import 'package:creative_gym_mobile/core/config/app_config.dart';
 import 'package:creative_gym_mobile/features/profile/presentation/widgets/crown_icon.dart';
 import 'package:creative_gym_mobile/features/profile/presentation/widgets/profile_work_artwork.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  setUp(bootstrapApp);
+  setUp(() => bootstrapApp(config: const AppConfig(mode: DataSourceMode.mock)));
 
   Future<void> openChallenges(WidgetTester tester) async {
     await tester.pumpWidget(const CreativeGymApp());
@@ -87,6 +88,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('profile-screen')), findsOneWidget);
+    expect(find.byKey(const ValueKey('admin-menu-button')), findsOneWidget);
     expect(find.byKey(const ValueKey('profile-points')), findsOneWidget);
     expect(find.text('840'), findsOneWidget);
     expect(find.text('Работы'), findsOneWidget);

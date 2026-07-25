@@ -1,5 +1,7 @@
+import 'package:creative_gym_mobile/core/utils/challenge_labels.dart';
 import 'package:creative_gym_mobile/features/challenges/data/dto/challenge_dto.dart';
 import 'package:creative_gym_mobile/features/challenges/data/mappers/challenge_mapper.dart';
+import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -35,5 +37,12 @@ void main() {
     expect(workout.participantsLabel, '12 участников');
     expect(workout.coverUrl, contains('/cover'));
     expect(workout.viewerCanEdit, isTrue);
+  });
+
+  test('maps current API upcoming and results phase names', () {
+    expect(weeklyWorkoutPhaseLabel('upcoming'), 'Скоро старт');
+    expect(weeklyWorkoutPhaseLabel('results'), 'Результаты');
+    expect(gymRoomPhaseFromApi('upcoming'), GymRoomPhase.upcoming);
+    expect(gymRoomPhaseFromApi('results'), GymRoomPhase.results);
   });
 }

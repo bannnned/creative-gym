@@ -51,6 +51,18 @@ class ApiClient {
     return response.data ?? const {};
   }
 
+  Future<Map<String, dynamic>> patchJson(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    final response = await _dio.patch<Map<String, dynamic>>(
+      path,
+      data: body,
+      options: Options(contentType: Headers.jsonContentType),
+    );
+    return response.data ?? const {};
+  }
+
   Future<Map<String, dynamic>> postMultipart(
     String path, {
     required FormData formData,

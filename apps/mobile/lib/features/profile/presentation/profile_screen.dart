@@ -1,6 +1,7 @@
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
+import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
 import 'package:creative_gym_mobile/features/profile/domain/profile_data.dart';
 import 'package:creative_gym_mobile/features/profile/presentation/widgets/crown_icon.dart';
@@ -31,11 +32,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _profileFuture = appDependencies.profile.getProfile());
   }
 
+  Future<void> _openAdmin() async {
+    try {
+      if (await appDependencies.admin.isAdmin()) {
+        if (mounted) {
+          context.push(AppRoutes.adminChallenges);
+        }
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+      final code = await _askForAdminCode();
+      if (code == null || code.isEmpty || !mounted) {
+        return;
+      }
+
+      await appDependencies.admin.unlock(code);
+      if (mounted) {
+        context.push(AppRoutes.adminChallenges);
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final message =
+          error is ApiException && error.code == 'invalid_admin_code'
+          ? 'Неверный код'
+          : userErrorMessage(error);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  Future<String?> _askForAdminCode() {
+    final controller = TextEditingController();
+    final result = showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Режим автора'),
+        content: TextField(
+          key: const ValueKey('admin-code-field'),
+          controller: controller,
+          autofocus: true,
+          obscureText: true,
+          onSubmitted: (value) => Navigator.pop(context, value.trim()),
+          decoration: const InputDecoration(
+            labelText: 'Код',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Открыть'),
+          ),
+        ],
+      ),
+    );
+    return result.whenComplete(controller.dispose);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppGlassScaffold(
       title: 'Профиль',
       showBackButton: true,
+      actions: [
+        AppGlassHeaderAction(
+          key: const ValueKey('admin-menu-button'),
+          icon: Icons.more_horiz_rounded,
+          semanticLabel: 'Режим автора',
+          onPressed: _openAdmin,
+        ),
+      ],
       body: FutureBuilder<ProfileData>(
         future: _profileFuture,
         builder: (context, snapshot) {

@@ -168,11 +168,17 @@ func ensureCoverAuthor(
 	userID string,
 ) error {
 	var createdByUserID *string
+	var isAdmin bool
 	err := queryer.QueryRow(ctx, `
-SELECT created_by_user_id::text
-FROM challenges
-WHERE id = $1
-FOR UPDATE`, challengeID).Scan(&createdByUserID)
+SELECT
+  c.created_by_user_id::text,
+  EXISTS (
+    SELECT 1 FROM users
+    WHERE id = $2 AND is_admin = true
+  )
+FROM challenges c
+WHERE c.id = $1
+FOR UPDATE`, challengeID, userID).Scan(&createdByUserID, &isAdmin)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
@@ -180,7 +186,7 @@ FOR UPDATE`, challengeID).Scan(&createdByUserID)
 		return fmt.Errorf("query challenge author: %w", err)
 	}
 
-	if createdByUserID == nil || *createdByUserID != userID {
+	if !isAdmin && (createdByUserID == nil || *createdByUserID != userID) {
 		return ErrCoverForbidden
 	}
 	return nil

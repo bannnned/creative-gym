@@ -62,6 +62,11 @@ Available challenge endpoints:
 ```txt
 POST /api/v1/auth/guest
 GET /api/v1/auth/me
+GET /api/v1/admin/status
+POST /api/v1/admin/unlock
+POST /api/v1/admin/challenges
+PATCH /api/v1/admin/challenges/{challengeId}
+DELETE /api/v1/admin/challenges/{challengeId}
 GET /api/v1/challenges/active
 GET /api/v1/challenges/{challengeId}
 POST /api/v1/challenges/{challengeId}/join
@@ -92,6 +97,11 @@ fall back to `DEV_USER_ID`. Production ignores the dev-user mechanism.
 The guest session is designed to be upgraded in place with a verified phone
 identity later; see `../../docs/15-authentication-plan.md`.
 
+Admin access is unlocked for the current authenticated user with a private
+code. Only the SHA-256 hash is configured on the server. Admin challenge
+deletion is a safe archive (`status=cancelled`), so rooms, works, votes, and
+results are preserved.
+
 ## Test
 
 ```powershell
@@ -114,6 +124,7 @@ Initial variables:
   `DB_SSLMODE` - optional split PostgreSQL connection variables, used when
   `DATABASE_URL` and `DATABASE_URL_HEX` are empty.
 - `DEV_USER_ID` - temporary non-production user id.
+- `ADMIN_ACCESS_CODE_HASH` - lowercase SHA-256 hash of the private admin code.
 - `CORS_ALLOWED_ORIGINS` - comma-separated browser origins allowed by CORS.
 - `WEB_STATIC_DIR` - optional directory with the built React PWA.
 - `S3_ENDPOINT` - S3-compatible endpoint, for example `https://s3.twcstorage.ru`.

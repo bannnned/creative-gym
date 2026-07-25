@@ -23,6 +23,7 @@ services:
       HTTP_ADDR: :8080
       DATABASE_URL: postgres://creative_gym:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/creative_gym?sslmode=disable
       DEV_USER_ID: ${DEV_USER_ID:?set DEV_USER_ID}
+      ADMIN_ACCESS_CODE_HASH: ${ADMIN_ACCESS_CODE_HASH:-}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
       S3_ENDPOINT: ${S3_ENDPOINT:?set S3_ENDPOINT}
       S3_REGION: ${S3_REGION:?set S3_REGION}

@@ -16,6 +16,7 @@ func TestLoadUsesDefaults(t *testing.T) {
 	t.Setenv("DB_NAME", "")
 	t.Setenv("DB_SSLMODE", "")
 	t.Setenv("DEV_USER_ID", "")
+	t.Setenv("ADMIN_ACCESS_CODE_HASH", "")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "")
 	t.Setenv("WEB_STATIC_DIR", "")
 	t.Setenv("S3_ENDPOINT", "")
@@ -42,6 +43,10 @@ func TestLoadUsesDefaults(t *testing.T) {
 
 	if cfg.DevUserID != defaultDevUserID {
 		t.Fatalf("DevUserID = %q, want %q", cfg.DevUserID, defaultDevUserID)
+	}
+
+	if cfg.AdminAccessCodeHash != "" {
+		t.Fatalf("AdminAccessCodeHash = %q, want empty", cfg.AdminAccessCodeHash)
 	}
 
 	if len(cfg.CORSAllowedOrigins) != 0 {
@@ -71,6 +76,7 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	t.Setenv("DB_NAME", "")
 	t.Setenv("DB_SSLMODE", "")
 	t.Setenv("DEV_USER_ID", "11111111-1111-1111-1111-111111111111")
+	t.Setenv("ADMIN_ACCESS_CODE_HASH", "ABCDEF")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com, http://localhost:3000")
 	t.Setenv("WEB_STATIC_DIR", "/app/web")
 	t.Setenv("S3_ENDPOINT", "https://s3.example.com")
@@ -97,6 +103,10 @@ func TestLoadUsesEnvironment(t *testing.T) {
 
 	if cfg.DevUserID != "11111111-1111-1111-1111-111111111111" {
 		t.Fatalf("DevUserID = %q, want custom value", cfg.DevUserID)
+	}
+
+	if cfg.AdminAccessCodeHash != "abcdef" {
+		t.Fatalf("AdminAccessCodeHash = %q, want abcdef", cfg.AdminAccessCodeHash)
 	}
 
 	if len(cfg.CORSAllowedOrigins) != 2 {

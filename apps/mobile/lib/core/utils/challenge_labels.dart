@@ -4,8 +4,8 @@ String weeklyWorkoutPhaseLabel(String apiPhase) {
   return switch (apiPhase) {
     'submission' => 'Прием работ',
     'voting' => 'Голосование',
-    'finished' => 'Результаты',
-    'scheduled' => 'Скоро старт',
+    'results' || 'finished' => 'Результаты',
+    'upcoming' || 'scheduled' => 'Скоро старт',
     _ => apiPhase,
   };
 }
@@ -14,8 +14,8 @@ GymRoomPhase gymRoomPhaseFromApi(String apiPhase) {
   return switch (apiPhase) {
     'submission' => GymRoomPhase.submission,
     'voting' => GymRoomPhase.voting,
-    'finished' => GymRoomPhase.results,
-    'scheduled' => GymRoomPhase.upcoming,
+    'results' || 'finished' => GymRoomPhase.results,
+    'upcoming' || 'scheduled' => GymRoomPhase.upcoming,
     _ => GymRoomPhase.upcoming,
   };
 }
@@ -27,9 +27,9 @@ String deadlineLabelForPhase({
   DateTime? votingEndsAt,
 }) {
   return switch (apiPhase) {
-    'finished' => 'Завершено',
+    'results' || 'finished' => 'Завершено',
     'voting' => _relativeDeadlineLabel(votingEndsAt, fallback: 'Голосование'),
-    'scheduled' => _relativeStartLabel(submissionStartsAt),
+    'upcoming' || 'scheduled' => _relativeStartLabel(submissionStartsAt),
     _ => _relativeDeadlineLabel(
       submissionEndsAt,
       fallback: 'Прием работ открыт',

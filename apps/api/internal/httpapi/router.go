@@ -64,8 +64,16 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 	mux.HandleFunc("POST /api/v1/auth/guest", authHandler.CreateGuestSession)
 	mux.HandleFunc("GET /api/v1/auth/me", authHandler.GetCurrentSession)
 
+	challengeRepository := challenges.NewRepository(dbPool)
 	challengeHandler := challenges.NewHandler(
-		challenges.NewRepository(dbPool),
+		challengeRepository,
+		writeJSON,
+		writeAPIError,
+	)
+	adminHandler := challenges.NewAdminHandler(
+		authRepository,
+		challengeRepository,
+		cfg.AdminAccessCodeHash,
 		writeJSON,
 		writeAPIError,
 	)
@@ -110,6 +118,11 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 	mux.HandleFunc("GET /api/v1/challenges/{challengeId}/cover", challengeHandler.GetCover)
 	mux.HandleFunc("PUT /api/v1/challenges/{challengeId}/cover", challengeHandler.UploadCover)
 	mux.HandleFunc("DELETE /api/v1/challenges/{challengeId}/cover", challengeHandler.DeleteCover)
+	mux.HandleFunc("GET /api/v1/admin/status", adminHandler.Status)
+	mux.HandleFunc("POST /api/v1/admin/unlock", adminHandler.Unlock)
+	mux.HandleFunc("POST /api/v1/admin/challenges", adminHandler.CreateChallenge)
+	mux.HandleFunc("PATCH /api/v1/admin/challenges/{challengeId}", adminHandler.UpdateChallenge)
+	mux.HandleFunc("DELETE /api/v1/admin/challenges/{challengeId}", adminHandler.ArchiveChallenge)
 	mux.HandleFunc("POST /api/v1/challenges/{challengeId}/join", roomHandler.JoinChallenge)
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}", roomHandler.GetByID)
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}/submissions/me", submissionHandler.GetMine)

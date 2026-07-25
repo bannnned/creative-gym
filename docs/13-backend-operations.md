@@ -122,9 +122,7 @@ Run from any machine:
 ```bash
 curl -4 --connect-timeout 5 https://creative.gde-kofe.ru/healthz
 curl -4 --connect-timeout 5 https://creative.gde-kofe.ru/readyz
-curl -4 --connect-timeout 5 \
-  -H 'X-Dev-User-Id: 00000000-0000-0000-0000-000000000001' \
-  https://creative.gde-kofe.ru/api/v1/challenges/active
+curl -4 --connect-timeout 5 https://creative.gde-kofe.ru/versionz
 ```
 
 Expected health response:
@@ -133,9 +131,6 @@ Expected health response:
 {"status":"ok"}
 ```
 
-The dev user UUID above is created by `apps/api/seeds/001_dev_data.sql`. It is
-temporary development authentication, not the final OAuth/session model.
-
 Current API routes are:
 
 ```text
@@ -143,6 +138,11 @@ GET    /healthz
 GET    /readyz
 GET    /versionz
 GET    /api/v1/auth/me
+GET    /api/v1/admin/status
+POST   /api/v1/admin/unlock
+POST   /api/v1/admin/challenges
+PATCH  /api/v1/admin/challenges/{challengeId}
+DELETE /api/v1/admin/challenges/{challengeId}
 GET    /api/v1/challenges/active
 GET    /api/v1/challenges/{challengeId}
 GET    /api/v1/challenges/{challengeId}/cover
@@ -166,15 +166,18 @@ ownership and cover metadata. The seeded development user owns the seeded
 challenges, so the physical-device API build can exercise cover
 create/replace immediately after deployment.
 
+Migration `000004` adds `users.is_admin` and one time-relative test challenge.
+Admin access is unlocked from the profile with a private code. Production
+stores only its lowercase SHA-256 hash in `ADMIN_ACCESS_CODE_HASH`; the raw
+code is never committed or placed in the mobile build. Archiving a challenge
+sets `status=cancelled` and preserves its rooms, media, votes, and results.
+
 ## Flutter Connection
 
-Run the mobile app against the deployed backend with:
+The mobile app uses the deployed backend by default:
 
 ```powershell
-flutter run `
-  --dart-define=DATA_SOURCE_MODE=api `
-  --dart-define=API_BASE_URL=https://creative.gde-kofe.ru `
-  --dart-define=DEV_USER_ID=00000000-0000-0000-0000-000000000001
+flutter run
 ```
 
 `DATA_SOURCE_MODE=api` exposes backend failures in the UI.
@@ -182,9 +185,7 @@ flutter run `
 hide remote failures by returning mock data. The "Continue in demo" button is
 navigation only and does not select the data source.
 
-The mobile default dev user now matches the seeded UUID. Continue passing it
-explicitly in shared run configurations until real authentication replaces the
-dev-user mechanism.
+Use `--dart-define=DATA_SOURCE_MODE=mock` only for isolated UI development.
 
 ## VPS Inspection Runbook
 

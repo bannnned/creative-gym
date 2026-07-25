@@ -99,3 +99,33 @@ WHERE token_hash = $1
 
 	return userID, nil
 }
+
+func (r *Repository) IsAdmin(ctx context.Context, userID string) (bool, error) {
+	var isAdmin bool
+	err := r.pool.QueryRow(ctx, `
+SELECT is_admin
+FROM users
+WHERE id = $1
+`, userID).Scan(&isAdmin)
+	if err != nil {
+		return false, fmt.Errorf("query admin status: %w", err)
+	}
+
+	return isAdmin, nil
+}
+
+func (r *Repository) GrantAdmin(ctx context.Context, userID string) error {
+	command, err := r.pool.Exec(ctx, `
+UPDATE users
+SET is_admin = true, updated_at = now()
+WHERE id = $1
+`, userID)
+	if err != nil {
+		return fmt.Errorf("grant admin: %w", err)
+	}
+	if command.RowsAffected() != 1 {
+		return fmt.Errorf("grant admin: user not found")
+	}
+
+	return nil
+}

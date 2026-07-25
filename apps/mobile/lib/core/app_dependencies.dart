@@ -1,6 +1,9 @@
 import 'package:creative_gym_mobile/core/auth/auth_session_store.dart';
 import 'package:creative_gym_mobile/core/config/app_config.dart';
 import 'package:creative_gym_mobile/core/network/api_client.dart';
+import 'package:creative_gym_mobile/features/admin/data/api_admin_repository.dart';
+import 'package:creative_gym_mobile/features/admin/data/disabled_admin_repository.dart';
+import 'package:creative_gym_mobile/features/admin/domain/admin_repository.dart';
 import 'package:creative_gym_mobile/features/auth/data/auth_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/data/api_challenges_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/data/fallback_challenges_repository.dart';
@@ -39,6 +42,7 @@ class AppDependencies {
   AppDependencies({
     required this.config,
     required this.auth,
+    required this.admin,
     required this.challenges,
     required this.rooms,
     required this.submissions,
@@ -51,6 +55,7 @@ class AppDependencies {
 
   final AppConfig config;
   final AuthRepository auth;
+  final AdminRepository admin;
   final ChallengesRepository challenges;
   final RoomsRepository rooms;
   final SubmissionsRepository submissions;
@@ -73,6 +78,11 @@ class AppDependencies {
       sessionStore,
       resolvedConfig.mode != DataSourceMode.mock,
     );
+    final admin = switch (resolvedConfig.mode) {
+      DataSourceMode.mock => const DisabledAdminRepository(),
+      DataSourceMode.api ||
+      DataSourceMode.apiWithMockFallback => ApiAdminRepository(apiClient),
+    };
     final mockChallenges = const MockChallengesRepository();
     final apiChallenges = ApiChallengesRepository(apiClient);
     final mockRooms = const MockRoomsRepository();
@@ -137,6 +147,7 @@ class AppDependencies {
     return AppDependencies(
       config: resolvedConfig,
       auth: auth,
+      admin: admin,
       challenges: challenges,
       rooms: rooms,
       submissions: submissions,
