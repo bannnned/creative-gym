@@ -38,231 +38,44 @@ jobs:
         working-directory: apps/api
         run: go test ./...
 
-  deploy:
-    name: Deploy API to Timeweb VPS
+  verify:
+    name: Verify Timeweb VPS deployment
     needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     environment:
       name: production
       url: https://creative.gde-kofe.ru
 
     steps:
-      - name: Configure SSH
+      - name: Wait for VPS auto-deploy
         env:
-          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          API_URL: https://creative.gde-kofe.ru
         run: |
-          test -n "$VPS_SSH_PRIVATE_KEY"
-          test -n "$VPS_SSH_KNOWN_HOSTS"
-          install -m 700 -d "$HOME/.ssh"
-          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$HOME/.ssh/creative_gym_deploy"
-          chmod 600 "$HOME/.ssh/creative_gym_deploy"
-          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          chmod 600 "$HOME/.ssh/known_hosts"
-
-      - name: Deploy exact commit
-        env:
-          VPS_HOST: 147.45.99.61
-          VPS_PORT: "22"
-          VPS_USER: root
-        run: |
-          test -n "$VPS_HOST"
-          test -n "$VPS_USER"
-          remote_script="$(mktemp)"
-          trap 'rm -f "$remote_script"' EXIT
-
-          cat > "$remote_script" <<'REMOTE_SCRIPT'
-          set -Eeuo pipefail
-
-          deploy_sha="$1"
-          project_dir="/opt/creative-gym"
-          compose_file="docker-compose.vps.yml"
-
-          # SSH non-login shells can inherit a different Docker context than
-          # the interactive VPS shell. Pin deployment to the system daemon
-          # that owns the public creative-gym containers.
-          unset DOCKER_CONTEXT
-          export DOCKER_HOST=unix:///var/run/docker.sock
-          test -S /var/run/docker.sock
-
-          expected_docker_id="7a532156-a5da-40ba-825f-d4b34e41a16f"
-          actual_docker_id="$(docker info --format '{{.ID}}')"
-          if [ "$actual_docker_id" != "$expected_docker_id" ]; then
-            echo "Unexpected Docker daemon: $actual_docker_id"
-            echo "Expected public Docker daemon: $expected_docker_id"
-            exit 1
-          fi
-
-          if [ "$(hostname)" != "msk-1-vm-11ml" ]; then
-            echo "Unexpected VPS host: $(hostname)"
-            exit 1
-          fi
-
-          cd "$project_dir"
-
-          echo "Deployment target:"
-          echo "  host=$(hostname)"
-          echo "  docker_id=$actual_docker_id"
-          echo "  docker_root=$(docker info --format '{{.DockerRootDir}}')"
-          echo "Containers before deployment:"
-          docker compose -f "$compose_file" ps
-
-          if ! git diff --quiet || ! git diff --cached --quiet; then
-            echo "Tracked changes exist on the VPS. Refusing to overwrite them."
-            git status --short
-            exit 1
-          fi
-
-          git fetch --prune origin main
-          git cat-file -e "${deploy_sha}^{commit}"
-          git checkout main
-          git merge --ff-only "$deploy_sha"
-
-          docker compose -f "$compose_file" config --quiet
-          docker compose -f "$compose_file" build \
-            --pull \
-            --build-arg BUILD_SHA="$deploy_sha" \
-            api
-          docker compose -f "$compose_file" run --rm api /app/db migrate
-          docker compose -f "$compose_file" up -d --no-deps --force-recreate api
-
-          api_created="$(
-            docker compose -f "$compose_file" ps -q api |
-              xargs docker inspect --format '{{.Created}}'
-          )"
-          echo "API container recreated at $api_created"
-
-          ready=false
-          for attempt in $(seq 1 30); do
-            if docker compose -f "$compose_file" exec -T api \
-              wget -qO- http://127.0.0.1:8080/readyz |
-              grep -q '"status":"ok"'; then
-              ready=true
-              break
-            fi
-            sleep 2
-          done
-
-          if [ "$ready" != true ]; then
-            echo "API did not become ready after deployment."
-            docker compose -f "$compose_file" ps
-            docker compose -f "$compose_file" logs --tail 150 api
-            exit 1
-          fi
-
-          version="$(
-            docker compose -f "$compose_file" exec -T api \
-              wget -qO- http://127.0.0.1:8080/versionz
-          )"
-          if ! printf '%s' "$version" | grep -q "\"commit\":\"$deploy_sha\""; then
-            echo "Expected deployed commit $deploy_sha, got: $version"
-            exit 1
-          fi
-
-          auth_status="$(
-            {
-              docker compose -f "$compose_file" exec -T api \
-                wget -S -O /dev/null http://127.0.0.1:8080/api/v1/auth/me 2>&1 ||
-                true
-            } |
-              awk '/HTTP\// { status = $2 } END { print status }'
-          )"
-          if [ "$auth_status" != 401 ]; then
-            echo "Expected the deployed auth route to return 401, got: ${auth_status:-missing}"
-            docker compose -f "$compose_file" logs --tail 150 api
-            exit 1
-          fi
-
-          # Recreate Caddy so Docker republishes ports 80/443 and resolves the
-          # new API container address instead of retaining the previous one.
-          docker compose -f "$compose_file" up -d --no-deps --force-recreate caddy
-
-          caddy_created="$(
-            docker compose -f "$compose_file" ps -q caddy |
-              xargs docker inspect --format '{{.Created}}'
-          )"
-          echo "Caddy container recreated at $caddy_created"
-
-          proxy_ready=false
-          for attempt in $(seq 1 10); do
-            proxy_version="$(
-              curl --silent --show-error --insecure \
-                --resolve creative.gde-kofe.ru:443:127.0.0.1 \
-                https://creative.gde-kofe.ru/versionz ||
-                true
-            )"
-            if printf '%s' "$proxy_version" |
-              grep -q "\"commit\":\"$deploy_sha\""; then
-              proxy_ready=true
-              break
-            fi
-
-            sleep 2
-            docker compose -f "$compose_file" restart caddy
-          done
-
-          if [ "$proxy_ready" != true ]; then
-            echo "Caddy did not switch to commit $deploy_sha. Got: $proxy_version"
-            docker compose -f "$compose_file" logs --tail 100 caddy
-            exit 1
-          fi
-
-          docker compose -f "$compose_file" ps
-          docker compose -f "$compose_file" logs --since 2m api |
-            grep -E 'config loaded|s3_enabled|s3_complete|s3 client' || true
-          REMOTE_SCRIPT
-
           deployed=false
-          for attempt in 1 2 3 4; do
-            echo "SSH deployment attempt $attempt of 4"
-            if ssh \
-              -i "$HOME/.ssh/creative_gym_deploy" \
-              -p "${VPS_PORT:-22}" \
-              -o BatchMode=yes \
-              -o ConnectTimeout=15 \
-              -o ConnectionAttempts=2 \
-              -o ServerAliveInterval=15 \
-              -o ServerAliveCountMax=4 \
-              -o StrictHostKeyChecking=yes \
-              "$VPS_USER@$VPS_HOST" \
-              bash -s -- "$GITHUB_SHA" < "$remote_script"; then
+          for attempt in $(seq 1 120); do
+            ready_status="$(curl --silent --show-error --max-time 10 \
+              --output /dev/null --write-out '%{http_code}' \
+              "$API_URL/readyz" || true)"
+            auth_status="$(curl --silent --show-error --max-time 10 \
+              --output /dev/null --write-out '%{http_code}' \
+              "$API_URL/api/v1/auth/me" || true)"
+            version="$(curl --silent --show-error --max-time 10 \
+              "$API_URL/versionz" || true)"
+
+            if [ "$ready_status" = 200 ] &&
+              [ "$auth_status" = 401 ] &&
+              printf '%s' "$version" |
+                grep -q "\"commit\":\"$GITHUB_SHA\""; then
               deployed=true
               break
             fi
 
-            sleep $((attempt * 5))
+            echo "Waiting for $GITHUB_SHA: ready=$ready_status auth=$auth_status version=$version"
+            sleep 3
           done
 
-          test "$deployed" = true
-
-      - name: Verify public API
-        env:
-          API_URL: https://creative.gde-kofe.ru
-        run: |
-          ready=false
-          for attempt in $(seq 1 20); do
-            ready_status="$(curl --silent --show-error --output /dev/null \
-              --write-out '%{http_code}' "$API_URL/readyz" || true)"
-            auth_status="$(curl --silent --show-error --output /dev/null \
-              --write-out '%{http_code}' "$API_URL/api/v1/auth/me" || true)"
-            version="$(curl --silent --show-error "$API_URL/versionz" || true)"
-
-            if [ "$ready_status" = 200 ] &&
-              [ "$auth_status" = 401 ] &&
-              printf '%s' "$version" | grep -q "\"commit\":\"$GITHUB_SHA\""; then
-              ready=true
-              break
-            fi
-
-            sleep 2
-          done
-
-          if [ "$ready" != true ]; then
-            echo "Public API verification failed: ready=$ready_status auth=$auth_status version=$version"
+          if [ "$deployed" != true ]; then
+            echo "VPS did not deploy $GITHUB_SHA within the verification window."
             exit 1
           fi
-
-      - name: Remove SSH key
-        if: always()
-        run: rm -f "$HOME/.ssh/creative_gym_deploy"

@@ -1,0 +1,15 @@
+[Unit]
+Description=Deploy the latest Creative Gym backend
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/creative-gym
+Environment=DOCKER_HOST=unix:///var/run/docker.sock
+ExecStart=/usr/bin/bash /opt/creative-gym/deploy/timeweb/vps/auto-deploy.sh
+TimeoutStartSec=20min
+
+[Install]
+WantedBy=multi-user.target

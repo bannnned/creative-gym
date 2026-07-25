@@ -1,0 +1,12 @@
+[Unit]
+Description=Check GitHub for a new Creative Gym backend version
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=10s
+Persistent=true
+Unit=creative-gym-deploy.service
+
+[Install]
+WantedBy=timers.target

@@ -1,130 +1,111 @@
-# GitHub Actions Deployment Setup
+# Automatic VPS Deployment Setup
 
-The workflow `.github/workflows/deploy-backend.yml` automatically deploys the
-Go API after relevant code reaches `main`.
-
-Deployment sequence:
-
-```text
-push to main
-  -> go test ./...
-  -> SSH to the Timeweb VPS
-  -> fast-forward /opt/creative-gym to the pushed commit
-  -> build the api image
-  -> apply pending database migrations
-  -> replace the api container
-  -> verify /readyz inside the container
-```
-
-Flutter changes do not trigger this workflow. Flutter builds are installed on
-devices or published to mobile stores separately.
-
-## One-Time SSH Setup
-
-Generate a dedicated key on the development Windows machine. Do not add this
-key to the repository:
-
-```powershell
-ssh-keygen -t ed25519 `
-  -C "github-actions-creative-gym" `
-  -f "$env:USERPROFILE\.ssh\creative_gym_github_actions"
-```
-
-Print the public key:
-
-```powershell
-Get-Content "$env:USERPROFILE\.ssh\creative_gym_github_actions.pub"
-```
-
-In the Timeweb VPS console, add that one public-key line to root's authorized
-keys:
-
-```bash
-install -d -m 700 /root/.ssh
-printf '%s\n' 'PASTE_PUBLIC_KEY_HERE' >> /root/.ssh/authorized_keys
-chmod 600 /root/.ssh/authorized_keys
-```
-
-Print the VPS SSH host key in GitHub `known_hosts` format:
-
-```bash
-awk '{print "147.45.99.61 " $1 " " $2}' \
-  /etc/ssh/ssh_host_ed25519_key.pub
-```
-
-The public key and host key are not secrets. The private key is a secret.
-
-## GitHub Production Environment
-
-In the GitHub repository, open:
+Creative Gym uses a systemd timer on the Timeweb VPS to deploy backend changes
+from `main`. GitHub Actions runs the Go tests and then waits until the public
+API reports the exact pushed commit.
 
 ```text
-Settings -> Environments -> New environment -> production
+push backend change to main
+  -> GitHub Actions runs go test ./...
+  -> VPS timer fetches origin/main within one minute
+  -> VPS builds the API in its production Docker daemon
+  -> VPS applies pending migrations
+  -> VPS recreates API and Caddy
+  -> VPS verifies the exact commit through the public domain
+  -> GitHub Actions verifies /readyz, auth, and /versionz
 ```
 
-Add these environment secrets:
+This design deliberately runs Docker operations from the VPS itself. It avoids
+differences between an SSH execution environment and the public Docker
+environment.
 
-| Secret | Value |
-|---|---|
-| `VPS_HOST` | `147.45.99.61` |
-| `VPS_PORT` | `22` |
-| `VPS_USER` | `root` |
-| `VPS_SSH_PRIVATE_KEY` | Entire contents of `creative_gym_github_actions` |
-| `VPS_SSH_KNOWN_HOSTS` | Entire output of the VPS `awk` command above |
+Flutter-only changes do not trigger the backend workflow. The VPS script also
+skips an API rebuild when commits since the deployed API contain no
+backend-related changes.
 
-Read the private key in PowerShell without copying the `.pub` file:
+## One-Time VPS Setup
 
-```powershell
-Get-Content "$env:USERPROFILE\.ssh\creative_gym_github_actions" -Raw
-```
-
-S3 credentials, the PostgreSQL password, and other application settings stay
-only in `/opt/creative-gym/.env`. Do not add them to GitHub.
-
-## First Deployment
-
-Before enabling the first run, confirm that the VPS checkout has no tracked
-edits. Untracked `.env` and `docker-compose.vps.yml` files are expected and are
-not affected:
+Run from the Timeweb VPS console:
 
 ```bash
 cd /opt/creative-gym
-git status --short
-git remote -v
-git branch --show-current
+
+git fetch origin main
+git merge --ff-only origin/main
+
+install -m 644 \
+  deploy/timeweb/vps/creative-gym-deploy.service \
+  /etc/systemd/system/creative-gym-deploy.service
+
+install -m 644 \
+  deploy/timeweb/vps/creative-gym-deploy.timer \
+  /etc/systemd/system/creative-gym-deploy.timer
+
+systemctl daemon-reload
+systemctl enable --now creative-gym-deploy.timer
+systemctl start creative-gym-deploy.service
 ```
 
-The workflow intentionally stops when tracked VPS files have local changes. It
-never performs `git reset --hard`.
+The deployment script keeps production secrets in
+`/opt/creative-gym/.env`. It does not print or copy them.
 
-After adding the secrets, either push a relevant backend change to `main` or
-open:
+## Verification
 
-```text
-GitHub -> Actions -> Deploy backend -> Run workflow
+Inspect the timer and its most recent deployment:
+
+```bash
+systemctl status creative-gym-deploy.timer --no-pager
+systemctl status creative-gym-deploy.service --no-pager
+journalctl -u creative-gym-deploy.service -n 150 --no-pager
 ```
 
-The manual run is useful for the first deployment and for retrying a failed
-deployment without making an empty commit.
+Verify the public version:
+
+```bash
+curl -fsS https://creative.gde-kofe.ru/versionz
+```
+
+The `commit` value must match:
+
+```bash
+cd /opt/creative-gym
+git rev-parse HEAD
+```
+
+## Deployment Safety
+
+The script:
+
+- uses a host lock so two deployments cannot run concurrently;
+- refuses to overwrite tracked changes made directly on the VPS;
+- uses only fast-forward Git updates;
+- runs migrations before replacing the API container;
+- requires `/readyz` and `/versionz` to pass inside the API container;
+- recreates Caddy and checks the exact commit through the public domain;
+- records the last successful commit in
+  `/var/lib/creative-gym-deploy/last-successful-sha`.
+
+Database migrations are forward-only and transactional. Do not attempt an
+automatic application rollback after a migration without first checking schema
+compatibility.
 
 ## Recovery
 
-If deployment fails, read the failed GitHub Actions step first. The existing
-PostgreSQL container and volume are not recreated by this workflow.
+Trigger an immediate check without waiting for the timer:
 
-The SSH client retries initial connections and uses keepalive probes because
-the VPS route has previously shown intermittent connection and banner
-timeouts.
+```bash
+systemctl start creative-gym-deploy.service
+journalctl -u creative-gym-deploy.service -n 150 --no-pager
+```
 
-Inspect the server when needed:
+Inspect the runtime when needed:
 
 ```bash
 cd /opt/creative-gym
 docker compose -f docker-compose.vps.yml ps
-docker compose -f docker-compose.vps.yml logs --since 15m --tail 200 api
-git log -3 --oneline
+docker compose -f docker-compose.vps.yml logs --since 15m --tail 200 api caddy
 ```
 
-Database migrations are forward-only and transactional. Do not attempt an
-automatic application rollback after a migration without checking schema
-compatibility.
+If the service reports tracked changes, inspect them with `git status` and
+resolve them manually. Never use `git reset --hard` as routine deployment
+recovery.

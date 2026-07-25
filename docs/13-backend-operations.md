@@ -1,6 +1,6 @@
 # Backend Operations
 
-Last verified: 2026-07-24
+Last verified: 2026-07-26
 
 This document is the operational source of truth for the currently deployed
 Creative Gym backend. It records only non-secret infrastructure facts. Keep
@@ -48,7 +48,7 @@ Caddy with Let's Encrypt. PostgreSQL persists its data in a Docker volume.
 Only Caddy publishes host ports; API and PostgreSQL stay inside the Compose
 network.
 
-## Verified State On 2026-07-24
+## Verified State
 
 - All three containers had been running for four days with zero restarts.
 - PostgreSQL reported `healthy`.
@@ -74,25 +74,34 @@ confirm bucket permissions and the full object lifecycle.
 The upload/read/delete lifecycle was subsequently verified from the Flutter
 application on a physical Android device.
 
+On 2026-07-26, both the API container and the public domain reported the exact
+production commit through `GET /versionz`.
+
 ## Automatic Deployment
 
-The repository contains `.github/workflows/deploy-backend.yml`. It runs after
-backend-related changes are pushed to `main`, and can also be started manually
-from the GitHub Actions page.
+The VPS runs `creative-gym-deploy.timer` once per minute. The timer starts
+`creative-gym-deploy.service`, which executes
+`deploy/timeweb/vps/auto-deploy.sh` directly in the production host
+environment.
 
-The workflow:
+The deployment script:
 
-1. runs all Go API tests;
-2. connects to the VPS using a dedicated SSH key;
-3. fast-forwards `/opt/creative-gym` to the exact pushed commit;
-4. rebuilds the `api` image;
-5. applies pending database migrations;
-6. replaces only the API container;
-7. verifies `/readyz` from inside the new container.
+1. fetches `origin/main`;
+2. refuses to overwrite tracked VPS edits;
+3. fast-forwards `/opt/creative-gym`;
+4. skips the build when there are no backend changes;
+5. rebuilds the `api` image with the exact Git commit;
+6. applies pending database migrations;
+7. recreates the API and Caddy containers;
+8. verifies `/readyz` and the exact `/versionz` commit internally and through
+   the public domain.
 
-Production application secrets remain in `/opt/creative-gym/.env`. GitHub
-stores only the SSH connection values required for deployment. The one-time
-setup is documented in
+`.github/workflows/deploy-backend.yml` runs the Go tests and waits for the VPS
+timer to publish the exact pushed commit. Docker deployment no longer runs
+through the GitHub Actions SSH environment.
+
+Production application secrets remain only in `/opt/creative-gym/.env`.
+The one-time timer setup is documented in
 `deploy/timeweb/vps/GITHUB_ACTIONS_SETUP.md`.
 
 Only these paths trigger automatic deployment:
@@ -132,6 +141,8 @@ Current API routes are:
 ```text
 GET    /healthz
 GET    /readyz
+GET    /versionz
+GET    /api/v1/auth/me
 GET    /api/v1/challenges/active
 GET    /api/v1/challenges/{challengeId}
 GET    /api/v1/challenges/{challengeId}/cover
@@ -141,8 +152,12 @@ POST   /api/v1/challenges/{challengeId}/join
 GET    /api/v1/rooms/{roomId}
 GET    /api/v1/rooms/{roomId}/submissions/me
 POST   /api/v1/rooms/{roomId}/submissions
+GET    /api/v1/rooms/{roomId}/votes/next-pair
+POST   /api/v1/rooms/{roomId}/votes
+GET    /api/v1/rooms/{roomId}/results
 DELETE /api/v1/submissions/{submissionId}
 GET    /api/v1/submissions/{submissionId}/media
+GET    /api/v1/profile/me
 ```
 
 Challenge covers are stored as private S3 objects under
@@ -229,8 +244,16 @@ Do not run `/app/db seed` as a routine deployment step. Use it only when
 intentionally creating or refreshing development seed data.
 
 The automated source update/build/restart sequence is defined in
-`.github/workflows/deploy-backend.yml`. It uses a fast-forward-only Git update
-and refuses to overwrite tracked edits made directly on the VPS.
+`deploy/timeweb/vps/auto-deploy.sh`. It uses a fast-forward-only Git update and
+refuses to overwrite tracked edits made directly on the VPS.
+
+Inspect the automatic deployment:
+
+```bash
+systemctl status creative-gym-deploy.timer --no-pager
+systemctl status creative-gym-deploy.service --no-pager
+journalctl -u creative-gym-deploy.service -n 150 --no-pager
+```
 
 ## Known Issues And Follow-Ups
 
@@ -255,10 +278,9 @@ Do not treat a larger Flutter connect timeout as the primary fix.
 
 ### Operational Hardening
 
-- Finish the one-time GitHub `production` environment and SSH secret setup.
+- Install and verify the VPS systemd deployment timer.
 - Add a Docker healthcheck for the API container.
 - Decide whether to configure a small swap file on the 4 GiB VPS.
-- Document the exact deployment/update procedure.
 - Configure and verify PostgreSQL backups outside the live Docker volume.
 - Verify the restore procedure before inviting external testers.
 - Replace dev-user header authentication with OAuth-backed sessions.
