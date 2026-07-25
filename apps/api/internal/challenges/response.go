@@ -1,6 +1,9 @@
 package challenges
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type challengesResponse struct {
 	Challenges []challengeResponse `json:"challenges"`
@@ -27,6 +30,8 @@ type challengeResponse struct {
 	RoomCapacity       int       `json:"room_capacity"`
 	ViewerRoomID       *string   `json:"viewer_room_id"`
 	ViewerHasJoined    bool      `json:"viewer_has_joined"`
+	ViewerCanEdit      bool      `json:"viewer_can_edit"`
+	CoverURL           *string   `json:"cover_url"`
 }
 
 func toChallengeResponses(challenges []Challenge, now time.Time) []challengeResponse {
@@ -56,5 +61,20 @@ func toChallengeResponse(challenge Challenge, now time.Time) challengeResponse {
 		RoomCapacity:       challenge.RoomCapacity,
 		ViewerRoomID:       challenge.ViewerRoomID,
 		ViewerHasJoined:    challenge.ViewerHasJoined,
+		ViewerCanEdit:      challenge.ViewerCanEdit,
+		CoverURL:           challengeCoverURL(challenge),
 	}
+}
+
+func challengeCoverURL(challenge Challenge) *string {
+	if challenge.CoverUpdatedAt == nil {
+		return nil
+	}
+
+	url := fmt.Sprintf(
+		"/api/v1/challenges/%s/cover?v=%d",
+		challenge.ID,
+		challenge.CoverUpdatedAt.UTC().UnixNano(),
+	)
+	return &url
 }

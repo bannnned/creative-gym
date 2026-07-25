@@ -1,273 +1,207 @@
-import 'dart:math' as math;
-
 import 'package:creative_gym_mobile/app/creative_gym_app.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
+import 'package:creative_gym_mobile/features/profile/presentation/widgets/crown_icon.dart';
+import 'package:creative_gym_mobile/features/profile/presentation/widgets/profile_work_artwork.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  setUpAll(() {
-    bootstrapApp();
-  });
-  Future<void> openWeeklyWorkouts(WidgetTester tester) async {
+  setUp(bootstrapApp);
+
+  Future<void> openChallenges(WidgetTester tester) async {
     await tester.pumpWidget(const CreativeGymApp());
-
-    await tester.scrollUntilVisible(
-      find.text('Продолжить в демо'),
-      120,
-      scrollable: find.byType(Scrollable),
-    );
-    await tester.tap(find.text('Продолжить в демо'));
+    await tester.tap(find.byKey(const ValueKey('continue-button')));
     await tester.pumpAndSettle();
   }
 
-  Future<void> openGymRoom(
-    WidgetTester tester, {
-    String challengeId = 'morning-light',
-    String roomButtonLabel = 'Join Gym Room',
-  }) async {
-    await openWeeklyWorkouts(tester);
-
-    final cardFinder = find.byKey(ValueKey('weekly-workout-$challengeId'));
+  Future<void> chooseWorkout(WidgetTester tester, String title) async {
+    final titleFinder = find.text(title);
     await tester.scrollUntilVisible(
-      cardFinder,
+      titleFinder,
       260,
-      scrollable: find.byType(Scrollable),
+      scrollable: find.byType(Scrollable).first,
     );
-    final screenHeight =
-        tester.view.physicalSize.height / tester.view.devicePixelRatio;
-    for (var index = 0; index < 6; index += 1) {
-      final top = tester.getTopLeft(cardFinder).dy;
-      final bottom = tester.getBottomRight(cardFinder).dy;
-      if (top > screenHeight - 120) {
-        await tester.drag(find.byType(Scrollable), const Offset(0, -260));
-        await tester.pumpAndSettle();
-      } else if (bottom < 120) {
-        await tester.drag(find.byType(Scrollable), const Offset(0, 260));
-        await tester.pumpAndSettle();
-      } else {
-        break;
-      }
-    }
-    final topLeft = tester.getTopLeft(cardFinder);
-    final bottomRight = tester.getBottomRight(cardFinder);
-    final tapY =
-        (math.max(topLeft.dy, 120) +
-            math.min(bottomRight.dy, screenHeight - 120)) /
-        2;
-    await tester.tapAt(Offset((topLeft.dx + bottomRight.dx) / 2, tapY));
-    await tester.pumpAndSettle();
-
-    await tester.scrollUntilVisible(
-      find.text(roomButtonLabel),
-      200,
-      scrollable: find.byType(Scrollable),
-    );
-    final roomButtonFinder = find.text(roomButtonLabel);
-    final roomButtonCenter = tester.getCenter(roomButtonFinder);
-    if (roomButtonCenter.dy > screenHeight - 60) {
-      await tester.drag(find.byType(Scrollable), const Offset(0, -100));
-      await tester.pumpAndSettle();
-    }
-    await tester.tap(roomButtonFinder);
+    await tester.tap(titleFinder);
     await tester.pumpAndSettle();
   }
 
-  Future<void> openVoting(WidgetTester tester) async {
-    await openGymRoom(
-      tester,
-      challengeId: 'quiet-motion',
-      roomButtonLabel: 'Открыть Gym Room',
-    );
-
-    await tester.scrollUntilVisible(
-      find.text('Начать голосование'),
-      200,
-      scrollable: find.byType(Scrollable),
-    );
-    await tester.tap(find.text('Начать голосование'));
-    await tester.pumpAndSettle();
-  }
-
-  Future<void> voteLeftAndSettle(WidgetTester tester) async {
-    await tester.tap(find.text('Выбрать левый'));
-    await tester.pump(const Duration(milliseconds: 420));
-    await tester.pumpAndSettle();
-  }
-
-  testWidgets('shows login providers', (tester) async {
+  testWidgets('login has one clear action', (tester) async {
     await tester.pumpWidget(const CreativeGymApp());
 
     expect(find.text('Creative Gym'), findsOneWidget);
-    expect(find.text('Войти через Google'), findsOneWidget);
-    expect(find.text('Войти через Yandex'), findsOneWidget);
-    expect(find.text('Войти через GitHub'), findsOneWidget);
-    expect(find.text('Продолжить в демо'), findsOneWidget);
-    expect(find.byIcon(Icons.camera_alt_outlined), findsOneWidget);
-  });
-
-  testWidgets('opens weekly workouts demo screen', (tester) async {
-    await openWeeklyWorkouts(tester);
-
-    expect(find.text('Weekly Workouts'), findsOneWidget);
-    expect(find.text('Активные фото-тренировки'), findsOneWidget);
-    expect(find.text('Прием работ'), findsWidgets);
-    expect(find.text('Утренний свет'), findsOneWidget);
-    expect(find.text('Подробнее'), findsWidgets);
-
-    await tester.scrollUntilVisible(
-      find.text('Голосование сейчас'),
-      260,
-      scrollable: find.byType(Scrollable),
-    );
-    expect(find.text('Голосование сейчас'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('Завершенные'),
-      260,
-      scrollable: find.byType(Scrollable),
-    );
-    expect(find.text('Завершенные'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('Скоро'),
-      260,
-      scrollable: find.byType(Scrollable),
-    );
-    expect(find.text('Скоро'), findsOneWidget);
-  });
-
-  testWidgets('opens challenge details from weekly workouts', (tester) async {
-    await openWeeklyWorkouts(tester);
-
-    await tester.tap(find.text('Утренний свет'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Challenge Details'), findsOneWidget);
-    expect(find.text('Свет и тень'), findsOneWidget);
-    expect(find.text('Правила'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('Join Gym Room'),
-      200,
-      scrollable: find.byType(Scrollable),
-    );
-
-    expect(find.text('Join Gym Room'), findsOneWidget);
-  });
-
-  testWidgets('opens gym room from challenge details', (tester) async {
-    await openGymRoom(tester);
-
-    expect(find.text('Gym Room'), findsOneWidget);
-    expect(find.text('Фото еще не добавлено'), findsOneWidget);
-    expect(find.text('Добавить фото'), findsOneWidget);
-    expect(find.text('Состав комнаты'), findsOneWidget);
-    expect(find.text('Demo shortcuts'), findsOneWidget);
-  });
-
-  testWidgets('opens upload flow and uploads a photo', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await openGymRoom(tester);
-
-    await tester.tap(find.text('Добавить фото'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Загрузка фото'), findsOneWidget);
-    expect(find.text('Фото не выбрано'), findsOneWidget);
-
-    await tester.tap(find.text('Выбрать фото'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Фото готово к загрузке'), findsOneWidget);
-    expect(find.text('Загрузить фото'), findsOneWidget);
-
-    await tester.tap(find.text('Загрузить фото'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Фото загружено'), findsOneWidget);
-    expect(find.text('Фото загружено и сохранено.'), findsOneWidget);
-  });
-
-  testWidgets('opens voting flow and records a demo vote', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await openVoting(tester);
-
-    expect(find.text('Voting'), findsOneWidget);
-    expect(find.text('Пара 1 из 3'), findsOneWidget);
-    expect(find.text('Выбрать левый'), findsOneWidget);
-    expect(find.text('Выбрать правый'), findsOneWidget);
-    expect(find.text('Пропустить пару'), findsOneWidget);
-
-    await tester.tap(find.text('Выбрать левый'));
-    await tester.pump(const Duration(milliseconds: 120));
-
+    expect(find.text('Тренируй\nвзгляд.'), findsOneWidget);
     expect(
-      find.text('Выбор принят, загружаем следующую пару...'),
+      find.text('Один челлендж. Один кадр. Каждую неделю.'),
       findsOneWidget,
     );
-    expect(find.text('Выбрано'), findsOneWidget);
-
-    await tester.pump(const Duration(milliseconds: 420));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Пара 2 из 3'), findsOneWidget);
-    expect(find.text('1 выбрано'), findsOneWidget);
-
-    await tester.tap(find.text('Пропустить пару'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Пара 3 из 3'), findsOneWidget);
-    expect(find.text('1 выбрано'), findsOneWidget);
+    expect(find.text('Продолжить'), findsOneWidget);
+    expect(find.textContaining('Google'), findsNothing);
+    expect(find.textContaining('Yandex'), findsNothing);
   });
 
-  testWidgets('opens results from completed gym room', (tester) async {
+  testWidgets('login opens the minimalist challenge selection', (tester) async {
+    await openChallenges(tester);
+
+    expect(find.text('Челленджи'), findsOneWidget);
+    expect(find.byKey(const ValueKey('challenge-list')), findsOneWidget);
+    expect(find.text('Утренний свет'), findsOneWidget);
+    expect(find.text('Тихое движение'), findsOneWidget);
+    expect(find.text('Осталось 3 дня'), findsOneWidget);
+    expect(find.text('Другие задания'), findsNothing);
+
+    final firstCardTop = tester.getTopLeft(
+      find.byKey(const ValueKey('challenge-card-morning-light')),
+    );
+    expect(firstCardTop.dy, greaterThan(64));
+  });
+
+  testWidgets('challenge card opens one focused assignment', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await openGymRoom(
-      tester,
-      challengeId: 'evening-shapes',
-      roomButtonLabel: 'Открыть Gym Room',
-    );
+    await openChallenges(tester);
+    await chooseWorkout(tester, 'Тихое движение');
 
+    expect(find.text('Задание недели'), findsOneWidget);
+    expect(find.text('Челлендж'), findsNothing);
+    expect(find.byKey(const ValueKey('current-workout-title')), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Посмотреть результаты'),
-      200,
+      find.byKey(const ValueKey('primary-workout-action')),
+      180,
       scrollable: find.byType(Scrollable),
     );
-    await tester.drag(find.byType(Scrollable), const Offset(0, -80));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Посмотреть результаты'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Results'), findsOneWidget);
-    expect(find.text('Итоги Gym Room'), findsOneWidget);
-    expect(find.text('Ваш результат'), findsOneWidget);
-    expect(find.text('#3 в комнате'), findsOneWidget);
+    expect(find.text('Работы собраны'), findsOneWidget);
+    expect(find.text('Сравнить фотографии'), findsOneWidget);
+    expect(find.text('Weekly Workouts'), findsNothing);
+    expect(find.text('Gym Room'), findsNothing);
   });
 
-  testWidgets('opens results after completing voting flow', (tester) async {
+  testWidgets('profile shows stats, winner filter, and swipe viewer', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await openVoting(tester);
-
-    await voteLeftAndSettle(tester);
-    await voteLeftAndSettle(tester);
-    await voteLeftAndSettle(tester);
-
-    expect(find.text('Голосование завершено'), findsOneWidget);
-    expect(find.text('Посмотреть результаты'), findsOneWidget);
-
-    await tester.tap(find.text('Посмотреть результаты'));
+    await openChallenges(tester);
+    await tester.tap(find.byKey(const ValueKey('profile-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Results'), findsOneWidget);
-    expect(find.text('Сильнее всего считалось'), findsOneWidget);
+    expect(find.byKey(const ValueKey('profile-screen')), findsOneWidget);
+    expect(find.byKey(const ValueKey('profile-points')), findsOneWidget);
+    expect(find.text('840'), findsOneWidget);
+    expect(find.text('Работы'), findsOneWidget);
+    expect(find.byType(CrownIcon), findsNWidgets(8));
+    expect(find.byType(ProfileWorkArtwork), findsNWidgets(12));
+
+    await tester.tap(find.byKey(const ValueKey('winners-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ProfileWorkArtwork), findsNWidgets(5));
+
+    await tester.tap(find.byKey(const ValueKey('profile-work-work-01')));
+    await tester.pumpAndSettle();
+
+    final viewerFinder = find.byKey(const ValueKey('profile-photo-viewer'));
+    expect(viewerFinder, findsOneWidget);
+    await tester.drag(viewerFinder, const Offset(-320, 0));
+    await tester.pumpAndSettle();
+
+    final viewer = tester.widget<PageView>(viewerFinder);
+    expect(viewer.controller?.page, closeTo(1, 0.01));
+  });
+
+  testWidgets('rules stay behind a secondary action', (tester) async {
+    await openChallenges(tester);
+    await chooseWorkout(tester, 'Утренний свет');
+
+    await tester.tap(find.text('Условия'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Условия'), findsWidgets);
+    expect(find.textContaining('• '), findsWidgets);
+  });
+
+  testWidgets('photo flow keeps one primary action', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await openChallenges(tester);
+    await chooseWorkout(tester, 'Утренний свет');
+
+    expect(find.text('Начать'), findsOneWidget);
+    await tester.tap(find.text('Начать'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Фото'), findsOneWidget);
+    expect(find.text('Выбрать фото'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('pick-photo-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Фото выбрано'), findsOneWidget);
+    expect(find.text('Загрузить фото'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('upload-photo-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Фото принято'), findsOneWidget);
+    expect(find.text('Фото сохранено'), findsOneWidget);
+    expect(find.text('Заменить'), findsOneWidget);
+  });
+
+  testWidgets('tapping a photo records a comparison', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await openChallenges(tester);
+    await chooseWorkout(tester, 'Тихое движение');
+    await tester.scrollUntilVisible(
+      find.text('Сравнить фотографии'),
+      180,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.tap(find.text('Сравнить фотографии'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Какой кадр сильнее?'), findsOneWidget);
+    expect(find.text('1 из 3'), findsOneWidget);
+    expect(find.text('Пропустить'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('vote-Frame A')));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(find.text('Выбор принят'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 220));
+    await tester.pumpAndSettle();
+    expect(find.text('2 из 3'), findsOneWidget);
+  });
+
+  testWidgets('results lead with the user outcome', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await openChallenges(tester);
+    await chooseWorkout(tester, 'Вечерние контуры');
+    await tester.scrollUntilVisible(
+      find.text('Посмотреть итог'),
+      180,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.tap(find.text('Посмотреть итог'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Итог'), findsOneWidget);
+    expect(find.text('Тренировка завершена'), findsOneWidget);
+    expect(find.text('Ваш кадр'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Посмотреть все работы'),
+      180,
+      scrollable: find.byType(Scrollable),
+    );
+    expect(find.text('Посмотреть все работы'), findsOneWidget);
+
+    await tester.tap(find.text('Посмотреть все работы'));
+    await tester.pumpAndSettle();
+    expect(find.text('Скрыть работы'), findsOneWidget);
+    expect(find.text('Ваш кадр'), findsWidgets);
   });
 }

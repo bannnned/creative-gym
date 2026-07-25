@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:creative_gym_mobile/features/challenges/data/mock_weekly_workouts.dart';
 import 'package:creative_gym_mobile/features/challenges/domain/challenges_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/domain/weekly_workout.dart';
 import 'package:creative_gym_mobile/features/rooms/data/mock_gym_rooms.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
+import 'package:creative_gym_mobile/features/submissions/domain/selected_photo.dart';
 
 class MockChallengesRepository implements ChallengesRepository {
   const MockChallengesRepository();
@@ -30,5 +33,13 @@ class MockChallengesRepository implements ChallengesRepository {
     }
 
     return room;
+  }
+
+  @override
+  Future<Uint8List?> loadCover(WeeklyWorkout workout) async => null;
+
+  @override
+  Future<void> uploadCover(String challengeId, SelectedPhoto photo) async {
+    throw UnsupportedError('Cover upload is unavailable in mock mode.');
   }
 }

@@ -1,14 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:creative_gym_mobile/features/challenges/data/api_challenges_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/data/mock_challenges_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/domain/challenges_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/domain/weekly_workout.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
+import 'package:creative_gym_mobile/features/submissions/domain/selected_photo.dart';
 
 class FallbackChallengesRepository implements ChallengesRepository {
-  FallbackChallengesRepository({
-    required this._api,
-    required this._mock,
-  });
+  FallbackChallengesRepository({required this._api, required this._mock});
 
   final ApiChallengesRepository _api;
   final MockChallengesRepository _mock;
@@ -38,5 +38,19 @@ class FallbackChallengesRepository implements ChallengesRepository {
     } catch (_) {
       return _mock.joinChallenge(challengeId);
     }
+  }
+
+  @override
+  Future<Uint8List?> loadCover(WeeklyWorkout workout) async {
+    try {
+      return await _api.loadCover(workout);
+    } catch (_) {
+      return _mock.loadCover(workout);
+    }
+  }
+
+  @override
+  Future<void> uploadCover(String challengeId, SelectedPhoto photo) {
+    return _api.uploadCover(challengeId, photo);
   }
 }

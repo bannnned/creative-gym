@@ -29,6 +29,7 @@ SET
 
 INSERT INTO challenges (
   id,
+  created_by_user_id,
   kind,
   title,
   theme,
@@ -43,6 +44,7 @@ INSERT INTO challenges (
 VALUES
   (
     '10000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000001',
     'photo',
     'Morning Light',
     'Light and Shadow',
@@ -56,6 +58,7 @@ VALUES
   ),
   (
     '10000000-0000-0000-0000-000000000002',
+    '00000000-0000-0000-0000-000000000001',
     'photo',
     'Quiet Motion',
     'City Rhythm',
@@ -69,6 +72,7 @@ VALUES
   ),
   (
     '10000000-0000-0000-0000-000000000003',
+    '00000000-0000-0000-0000-000000000001',
     'photo',
     'Small Rituals',
     'Everyday Practice',
@@ -82,6 +86,7 @@ VALUES
   )
 ON CONFLICT (id) DO UPDATE
 SET
+  created_by_user_id = EXCLUDED.created_by_user_id,
   title = EXCLUDED.title,
   theme = EXCLUDED.theme,
   description = EXCLUDED.description,

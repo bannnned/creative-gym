@@ -134,6 +134,9 @@ GET    /healthz
 GET    /readyz
 GET    /api/v1/challenges/active
 GET    /api/v1/challenges/{challengeId}
+GET    /api/v1/challenges/{challengeId}/cover
+PUT    /api/v1/challenges/{challengeId}/cover
+DELETE /api/v1/challenges/{challengeId}/cover
 POST   /api/v1/challenges/{challengeId}/join
 GET    /api/v1/rooms/{roomId}
 GET    /api/v1/rooms/{roomId}/submissions/me
@@ -141,6 +144,12 @@ POST   /api/v1/rooms/{roomId}/submissions
 DELETE /api/v1/submissions/{submissionId}
 GET    /api/v1/submissions/{submissionId}/media
 ```
+
+Challenge covers are stored as private S3 objects under
+`challenge-covers/{challengeId}/...`. Migration `000003` adds challenge
+ownership and cover metadata. The seeded development user owns the seeded
+challenges, so the physical-device API build can exercise cover
+create/replace immediately after deployment.
 
 ## Flutter Connection
 

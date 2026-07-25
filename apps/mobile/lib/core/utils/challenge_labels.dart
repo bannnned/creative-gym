@@ -22,18 +22,37 @@ GymRoomPhase gymRoomPhaseFromApi(String apiPhase) {
 
 String deadlineLabelForPhase({
   required String apiPhase,
+  DateTime? submissionStartsAt,
   DateTime? submissionEndsAt,
   DateTime? votingEndsAt,
 }) {
   return switch (apiPhase) {
     'finished' => 'Завершено',
     'voting' => _relativeDeadlineLabel(votingEndsAt, fallback: 'Голосование'),
-    'scheduled' => 'Старт скоро',
+    'scheduled' => _relativeStartLabel(submissionStartsAt),
     _ => _relativeDeadlineLabel(
       submissionEndsAt,
       fallback: 'Прием работ открыт',
     ),
   };
+}
+
+String _relativeStartLabel(DateTime? startsAt) {
+  if (startsAt == null) {
+    return 'Старт скоро';
+  }
+
+  final remaining = startsAt.difference(DateTime.now().toUtc());
+  if (remaining.isNegative) {
+    return 'Стартует сейчас';
+  }
+  if (remaining.inDays >= 1) {
+    return 'Начнётся через ${remaining.inDays} дн.';
+  }
+  if (remaining.inHours >= 1) {
+    return 'Начнётся через ${remaining.inHours} ч.';
+  }
+  return 'Стартует скоро';
 }
 
 String _relativeDeadlineLabel(DateTime? endsAt, {required String fallback}) {

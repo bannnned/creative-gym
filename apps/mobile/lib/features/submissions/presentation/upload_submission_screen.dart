@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
-import 'package:creative_gym_mobile/core/errors/api_exception.dart';
+import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
 import 'package:creative_gym_mobile/features/submissions/domain/photo_picker.dart';
 import 'package:creative_gym_mobile/features/submissions/domain/selected_photo.dart';
@@ -11,7 +11,6 @@ import 'package:creative_gym_mobile/features/submissions/domain/submission.dart'
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
-import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -30,7 +29,7 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
   Submission? _submission;
   SelectedPhoto? _selectedPhoto;
   Uint8List? _uploadedPhotoBytes;
-  Object? _mediaLoadError;
+  bool _mediaLoadFailed = false;
   bool _isBusy = false;
   double? _uploadProgress;
 
@@ -43,18 +42,16 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
   Future<void> _loadData() async {
     final room = await appDependencies.rooms.getRoomById(widget.roomId);
     Submission? submission;
-    Uint8List? uploadedPhotoBytes;
-    Object? mediaLoadError;
+    Uint8List? photoBytes;
+    var mediaLoadFailed = false;
 
     if (room != null) {
       submission = await appDependencies.submissions.getMine(widget.roomId);
       if (submission != null) {
         try {
-          uploadedPhotoBytes = await appDependencies.submissions.loadMedia(
-            submission,
-          );
-        } catch (error) {
-          mediaLoadError = error;
+          photoBytes = await appDependencies.submissions.loadMedia(submission);
+        } catch (_) {
+          mediaLoadFailed = true;
         }
       }
     }
@@ -62,8 +59,8 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
     _room = room;
     _submission = submission;
     _selectedPhoto = null;
-    _uploadedPhotoBytes = uploadedPhotoBytes;
-    _mediaLoadError = mediaLoadError;
+    _uploadedPhotoBytes = photoBytes;
+    _mediaLoadFailed = mediaLoadFailed;
   }
 
   void _reload() {
@@ -78,45 +75,49 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Назад',
-          onPressed: () => context.go(AppRoutes.room(widget.roomId)),
+          onPressed: () => context.go(AppRoutes.challenges),
           icon: const Icon(Icons.arrow_back),
         ),
-        title: const Text('Загрузка фото'),
+        title: const Text('Фото'),
       ),
       body: FutureBuilder<void>(
         future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel(message: 'Загрузка вашей работы...');
+            return const AsyncLoadingPanel(message: 'Загружаем фото...');
           }
-
           if (snapshot.hasError) {
             return AsyncErrorPanel(
-              message: _errorMessage(snapshot.error!),
+              message: userErrorMessage(snapshot.error),
               onRetry: _reload,
             );
           }
 
           final room = _room;
           if (room == null) {
-            return const _MissingUploadRoom();
+            return const _SimpleState(
+              title: 'Задание не найдено',
+              message: 'Вернитесь к текущему заданию.',
+            );
           }
-
           if (!room.canUpload) {
-            return _UploadUnavailable(room: room);
+            return _SimpleState(
+              title: 'Приём фотографий завершён',
+              message: room.deadlineLabel,
+            );
           }
 
-          return _UploadContent(
+          return _PhotoContent(
             room: room,
             submission: _submission,
             selectedPhoto: _selectedPhoto,
             uploadedPhotoBytes: _uploadedPhotoBytes,
-            mediaLoadError: _mediaLoadError,
+            mediaLoadFailed: _mediaLoadFailed,
             isBusy: _isBusy,
             uploadProgress: _uploadProgress,
-            onPickPhoto: _pickPhoto,
+            onPick: _pickPhoto,
             onUpload: _uploadPhoto,
-            onCancelSelection: _cancelSelection,
+            onCancel: () => setState(() => _selectedPhoto = null),
             onDelete: _confirmDelete,
             onReloadMedia: _reloadUploadedMedia,
           );
@@ -131,21 +132,14 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
       if (!mounted || photo == null) {
         return;
       }
-
       setState(() {
         _selectedPhoto = photo;
       });
     } on PhotoPickerException catch (error) {
       _showError(error.message);
     } catch (error) {
-      _showError(_errorMessage(error));
+      _showError(userErrorMessage(error));
     }
-  }
-
-  void _cancelSelection() {
-    setState(() {
-      _selectedPhoto = null;
-    });
   }
 
   Future<void> _uploadPhoto() async {
@@ -164,47 +158,34 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
         widget.roomId,
         photo,
         onProgress: (sent, total) {
-          if (!mounted || total <= 0) {
-            return;
+          if (mounted && total > 0) {
+            setState(() => _uploadProgress = sent / total);
           }
-          setState(() {
-            _uploadProgress = sent / total;
-          });
         },
       );
 
-      Uint8List? uploadedPhotoBytes;
-      Object? mediaLoadError;
+      Uint8List? bytes;
+      var mediaLoadFailed = false;
       try {
-        uploadedPhotoBytes = await appDependencies.submissions.loadMedia(
-          submission,
-        );
-      } catch (error) {
-        mediaLoadError = error;
+        bytes = await appDependencies.submissions.loadMedia(submission);
+      } catch (_) {
+        mediaLoadFailed = true;
       }
 
       if (!mounted) {
         return;
       }
-
       setState(() {
         _submission = submission;
         _selectedPhoto = null;
-        _uploadedPhotoBytes = uploadedPhotoBytes;
-        _mediaLoadError = mediaLoadError;
+        _uploadedPhotoBytes = bytes;
+        _mediaLoadFailed = mediaLoadFailed;
         _isBusy = false;
         _uploadProgress = null;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            mediaLoadError == null
-                ? 'Фото загружено и сохранено.'
-                : 'Фото сохранено, но превью пока не загрузилось.',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Фото сохранено')));
     } catch (error) {
       if (!mounted) {
         return;
@@ -213,7 +194,7 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
         _isBusy = false;
         _uploadProgress = null;
       });
-      _showError(_errorMessage(error));
+      _showError(userErrorMessage(error));
     }
   }
 
@@ -222,10 +203,7 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
     if (submission == null || _isBusy) {
       return;
     }
-
-    setState(() {
-      _isBusy = true;
-    });
+    setState(() => _isBusy = true);
     try {
       final bytes = await appDependencies.submissions.loadMedia(submission);
       if (!mounted) {
@@ -233,18 +211,15 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
       }
       setState(() {
         _uploadedPhotoBytes = bytes;
-        _mediaLoadError = null;
+        _mediaLoadFailed = false;
         _isBusy = false;
       });
     } catch (error) {
       if (!mounted) {
         return;
       }
-      setState(() {
-        _mediaLoadError = error;
-        _isBusy = false;
-      });
-      _showError(_errorMessage(error));
+      setState(() => _isBusy = false);
+      _showError(userErrorMessage(error));
     }
   }
 
@@ -256,34 +231,29 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Удалить фото?'),
-          content: const Text(
-            'Работа будет удалена из Gym Room и из хранилища. '
-            'До конца приема работ можно будет загрузить новую.',
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить фото?'),
+        content: const Text(
+          'До окончания приёма работ можно будет загрузить другое.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Отмена'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Отмена'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Удалить'),
-            ),
-          ],
-        );
-      },
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
     );
 
     if (confirmed != true || !mounted) {
       return;
     }
 
-    setState(() {
-      _isBusy = true;
-    });
+    setState(() => _isBusy = true);
     try {
       await appDependencies.submissions.delete(submission.id);
       if (!mounted) {
@@ -293,45 +263,42 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
         _submission = null;
         _selectedPhoto = null;
         _uploadedPhotoBytes = null;
-        _mediaLoadError = null;
+        _mediaLoadFailed = false;
         _isBusy = false;
       });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Фото удалено.')));
+      ).showSnackBar(const SnackBar(content: Text('Фото удалено')));
     } catch (error) {
       if (!mounted) {
         return;
       }
-      setState(() {
-        _isBusy = false;
-      });
-      _showError(_errorMessage(error));
+      setState(() => _isBusy = false);
+      _showError(userErrorMessage(error));
     }
   }
 
   void _showError(String message) {
-    if (!mounted) {
-      return;
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
   }
 }
 
-class _UploadContent extends StatelessWidget {
-  const _UploadContent({
+class _PhotoContent extends StatelessWidget {
+  const _PhotoContent({
     required this.room,
     required this.submission,
     required this.selectedPhoto,
     required this.uploadedPhotoBytes,
-    required this.mediaLoadError,
+    required this.mediaLoadFailed,
     required this.isBusy,
     required this.uploadProgress,
-    required this.onPickPhoto,
+    required this.onPick,
     required this.onUpload,
-    required this.onCancelSelection,
+    required this.onCancel,
     required this.onDelete,
     required this.onReloadMedia,
   });
@@ -340,424 +307,179 @@ class _UploadContent extends StatelessWidget {
   final Submission? submission;
   final SelectedPhoto? selectedPhoto;
   final Uint8List? uploadedPhotoBytes;
-  final Object? mediaLoadError;
+  final bool mediaLoadFailed;
   final bool isBusy;
   final double? uploadProgress;
-  final VoidCallback onPickPhoto;
+  final VoidCallback onPick;
   final VoidCallback onUpload;
-  final VoidCallback onCancelSelection;
+  final VoidCallback onCancel;
   final VoidCallback onDelete;
   final VoidCallback onReloadMedia;
 
   @override
   Widget build(BuildContext context) {
+    final previewBytes = selectedPhoto?.bytes ?? uploadedPhotoBytes;
     final hasUploadedPhoto = submission != null;
     final hasSelection = selectedPhoto != null;
-    final previewBytes = selectedPhoto?.bytes ?? uploadedPhotoBytes;
-    final statusLabel = hasSelection
-        ? hasUploadedPhoto
-              ? 'Новое фото готово к замене'
-              : 'Фото готово к загрузке'
-        : hasUploadedPhoto
-        ? 'Фото загружено'
-        : 'Фото не выбрано';
 
     return AbsorbPointer(
       absorbing: isBusy,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         children: [
           Text(
             room.challengeTitle,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               color: AppTheme.ink,
-              fontWeight: FontWeight.w900,
-              height: 1.05,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Одна фотография для этой Gym Room',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppTheme.primaryDark,
-              fontWeight: FontWeight.w800,
-            ),
+            room.deadlineLabel,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.mutedInk),
           ),
           const SizedBox(height: 24),
-          AnimatedOpacity(
-            opacity: isBusy ? 0.72 : 1,
-            duration: const Duration(milliseconds: 180),
-            child: GlassPanel(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _UploadPreview(
-                    photoBytes: previewBytes,
-                    isUploaded: hasUploadedPhoto && !hasSelection,
-                  ),
-                  if (isBusy) ...[
-                    const SizedBox(height: 14),
-                    LinearProgressIndicator(value: uploadProgress),
-                    const SizedBox(height: 8),
-                    Text(
-                      uploadProgress == null
-                          ? 'Обновляем данные...'
-                          : 'Загружаем ${(_safeProgress(uploadProgress!) * 100).round()}%',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.mutedInk,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Icon(
-                        hasUploadedPhoto && !hasSelection
-                            ? Icons.check_circle_outline
-                            : hasSelection
-                            ? Icons.image_outlined
-                            : Icons.add_photo_alternate_outlined,
-                        color: AppTheme.primaryDark,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          statusLabel,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: AppTheme.ink,
-                                fontWeight: FontWeight.w900,
-                              ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    hasUploadedPhoto
-                        ? '${_formatBytes(submission!.byteSize)} · '
-                              '${submission!.contentType}'
-                        : 'JPEG, PNG или WebP, не больше 10 МБ.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.mutedInk,
-                      height: 1.35,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (mediaLoadError != null && !hasSelection) ...[
-                    const SizedBox(height: 12),
-                    _MediaLoadWarning(onRetry: onReloadMedia),
-                  ],
-                  const SizedBox(height: 18),
-                  if (!hasSelection && !hasUploadedPhoto)
-                    GlassButton(
-                      onPressed: onPickPhoto,
-                      icon: Icons.photo_library_outlined,
-                      label: 'Выбрать фото',
-                    )
-                  else if (hasSelection) ...[
-                    GlassButton(
-                      onPressed: onUpload,
-                      icon: Icons.cloud_upload_outlined,
-                      label: hasUploadedPhoto
-                          ? 'Загрузить вместо текущего'
-                          : 'Загрузить фото',
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GlassButton(
-                            onPressed: onPickPhoto,
-                            icon: Icons.swap_horiz,
-                            label: 'Выбрать другое',
-                            variant: GlassButtonVariant.tonal,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: GlassButton(
-                            onPressed: onCancelSelection,
-                            icon: Icons.close,
-                            label: 'Отмена',
-                            variant: GlassButtonVariant.quiet,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    GlassButton(
-                      onPressed: onPickPhoto,
-                      icon: Icons.swap_horiz,
-                      label: 'Заменить фото',
-                      variant: GlassButtonVariant.tonal,
-                    ),
-                    const SizedBox(height: 12),
-                    GlassButton(
-                      onPressed: onDelete,
-                      icon: Icons.delete_outline,
-                      label: 'Удалить фото',
-                      variant: GlassButtonVariant.quiet,
-                    ),
-                  ],
-                ],
-              ),
+          _PhotoPreview(bytes: previewBytes),
+          if (isBusy) ...[
+            const SizedBox(height: 16),
+            LinearProgressIndicator(value: uploadProgress),
+            const SizedBox(height: 8),
+            Text(
+              uploadProgress == null
+                  ? 'Обновляем...'
+                  : 'Загружаем ${(uploadProgress! * 100).clamp(0, 100).round()}%',
+              textAlign: TextAlign.center,
             ),
+          ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  hasSelection
+                      ? 'Фото выбрано'
+                      : hasUploadedPhoto
+                      ? 'Фото принято'
+                      : 'Добавьте одну фотографию',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (hasUploadedPhoto && !hasSelection)
+                PopupMenuButton<String>(
+                  tooltip: 'Ещё',
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      onDelete();
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'delete', child: Text('Удалить')),
+                  ],
+                ),
+            ],
           ),
+          if (mediaLoadFailed && !hasSelection) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: onReloadMedia,
+              child: const Text('Повторить загрузку превью'),
+            ),
+          ],
+          const SizedBox(height: 18),
+          if (hasSelection) ...[
+            GlassButton(
+              key: const ValueKey('upload-photo-button'),
+              label: hasUploadedPhoto ? 'Заменить фото' : 'Загрузить фото',
+              onPressed: onUpload,
+            ),
+            const SizedBox(height: 8),
+            TextButton(onPressed: onCancel, child: const Text('Отмена')),
+          ] else if (hasUploadedPhoto)
+            TextButton(onPressed: onPick, child: const Text('Заменить'))
+          else
+            GlassButton(
+              key: const ValueKey('pick-photo-button'),
+              label: 'Выбрать фото',
+              onPressed: onPick,
+            ),
         ],
       ),
     );
   }
 }
 
-class _UploadPreview extends StatelessWidget {
-  const _UploadPreview({required this.photoBytes, required this.isUploaded});
+class _PhotoPreview extends StatelessWidget {
+  const _PhotoPreview({required this.bytes});
 
-  final Uint8List? photoBytes;
-  final bool isUploaded;
+  final Uint8List? bytes;
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 4 / 5,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppTheme.radiusL),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white.withValues(alpha: 0.42),
-                Colors.white.withValues(alpha: 0.2),
-              ],
-            ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.58)),
-          ),
-          child: photoBytes == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.add_photo_alternate_outlined,
-                        size: 44,
-                        color: AppTheme.mutedInk,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Здесь появится превью',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: AppTheme.ink,
-                              fontWeight: FontWeight.w900,
-                            ),
-                      ),
-                    ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppTheme.radiusL),
+      child: AspectRatio(
+        aspectRatio: 4 / 5,
+        child: bytes == null
+            ? ColoredBox(
+                color: const Color(0xFFE7ECE8),
+                child: const Center(
+                  child: Icon(
+                    Icons.add_photo_alternate_outlined,
+                    size: 42,
+                    color: AppTheme.mutedInk,
                   ),
-                )
-              : Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.memory(
-                      photoBytes!,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Center(
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            size: 48,
-                            color: AppTheme.mutedInk,
-                          ),
-                        );
-                      },
-                    ),
-                    if (isUploaded)
-                      Positioned(
-                        right: 12,
-                        top: 12,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryDark.withValues(alpha: 0.88),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 7,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.cloud_done_outlined,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Загружено',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
                 ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MediaLoadWarning extends StatelessWidget {
-  const _MediaLoadWarning({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF3D8).withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(AppTheme.radiusM),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            const Icon(Icons.cloud_off_outlined, color: AppTheme.mutedInk),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Text(
-                'Работа сохранена, но превью не удалось получить из хранилища.',
+              )
+            : Image.memory(
+                bytes!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => const ColoredBox(
+                  color: Color(0xFFE7ECE8),
+                  child: Center(child: Text('Не удалось показать фото')),
+                ),
               ),
-            ),
-            TextButton(onPressed: onRetry, child: const Text('Повторить')),
-          ],
-        ),
       ),
     );
   }
 }
 
-class _UploadUnavailable extends StatelessWidget {
-  const _UploadUnavailable({required this.room});
+class _SimpleState extends StatelessWidget {
+  const _SimpleState({required this.title, required this.message});
 
-  final GymRoom room;
-
-  @override
-  Widget build(BuildContext context) {
-    return _UploadStatePanel(
-      icon: Icons.lock_clock_outlined,
-      title: 'Загрузка сейчас закрыта',
-      message: room.phaseHelpLabel,
-      buttonLabel: 'Вернуться в Gym Room',
-      onPressed: () => context.go(AppRoutes.room(room.id)),
-    );
-  }
-}
-
-class _MissingUploadRoom extends StatelessWidget {
-  const _MissingUploadRoom();
-
-  @override
-  Widget build(BuildContext context) {
-    return _UploadStatePanel(
-      icon: Icons.search_off_outlined,
-      title: 'Комната не найдена',
-      message: 'Проверьте ссылку или вернитесь к списку Weekly Workouts.',
-      buttonLabel: 'Вернуться к Weekly Workouts',
-      onPressed: () => context.go(AppRoutes.challenges),
-    );
-  }
-}
-
-class _UploadStatePanel extends StatelessWidget {
-  const _UploadStatePanel({
-    required this.icon,
-    required this.title,
-    required this.message,
-    required this.buttonLabel,
-    required this.onPressed,
-  });
-
-  final IconData icon;
   final String title;
   final String message;
-  final String buttonLabel;
-  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: GlassPanel(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 44, color: AppTheme.mutedInk),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppTheme.ink,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.mutedInk,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 16),
-              GlassButton(
-                onPressed: onPressed,
-                icon: Icons.arrow_back,
-                label: buttonLabel,
-                variant: GlassButtonVariant.tonal,
-              ),
-            ],
-          ),
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () => context.go(AppRoutes.challenges),
+              child: const Text('К заданию'),
+            ),
+          ],
         ),
       ),
     );
   }
-}
-
-String _errorMessage(Object error) {
-  if (error is ApiException) {
-    return error.message;
-  }
-  if (error is PhotoPickerException) {
-    return error.message;
-  }
-  return error.toString();
-}
-
-double _safeProgress(double value) => value.clamp(0, 1).toDouble();
-
-String _formatBytes(int bytes) {
-  if (bytes >= 1024 * 1024) {
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} МБ';
-  }
-  if (bytes >= 1024) {
-    return '${(bytes / 1024).toStringAsFixed(0)} КБ';
-  }
-  return '$bytes Б';
 }

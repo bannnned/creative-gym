@@ -22,6 +22,8 @@ void main() {
         roomCapacity: 16,
         viewerRoomId: 'room-1',
         viewerHasJoined: true,
+        coverUrl: '/api/v1/challenges/challenge-1/cover?v=1',
+        viewerCanEdit: true,
       ),
     );
 
@@ -31,5 +33,7 @@ void main() {
     expect(workout.roomId, 'room-1');
     expect(workout.isJoined, isTrue);
     expect(workout.participantsLabel, '12 участников');
+    expect(workout.coverUrl, contains('/cover'));
+    expect(workout.viewerCanEdit, isTrue);
   });
 }

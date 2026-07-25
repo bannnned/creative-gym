@@ -14,6 +14,7 @@ class ChallengeMapper {
       phase: weeklyWorkoutPhaseLabel(dto.phase),
       submissionDeadlineLabel: deadlineLabelForPhase(
         apiPhase: dto.phase,
+        submissionStartsAt: dto.submissionStartsAt,
         submissionEndsAt: dto.submissionEndsAt,
         votingEndsAt: dto.votingEndsAt,
       ),
@@ -30,6 +31,8 @@ class ChallengeMapper {
       roomId: dto.viewerRoomId ?? '',
       rules: dto.rules,
       isJoined: dto.viewerHasJoined,
+      coverUrl: dto.coverUrl,
+      viewerCanEdit: dto.viewerCanEdit,
     );
   }
 }

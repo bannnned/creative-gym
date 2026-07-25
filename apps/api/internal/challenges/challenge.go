@@ -11,6 +11,7 @@ const (
 
 type Challenge struct {
 	ID                 string
+	CreatedByUserID    *string
 	Kind               string
 	Title              string
 	Theme              string
@@ -25,6 +26,8 @@ type Challenge struct {
 	RoomCapacity       int
 	ViewerRoomID       *string
 	ViewerHasJoined    bool
+	ViewerCanEdit      bool
+	CoverUpdatedAt     *time.Time
 }
 
 func (c Challenge) PhaseAt(now time.Time) string {

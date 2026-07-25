@@ -16,9 +16,15 @@ type Store interface {
 
 type Handler struct {
 	store         Store
+	objects       ObjectStore
 	now           func() time.Time
 	writeJSON     func(http.ResponseWriter, int, any)
 	writeAPIError func(http.ResponseWriter, int, string, string)
+}
+
+func (h *Handler) WithObjectStore(objects ObjectStore) *Handler {
+	h.objects = objects
+	return h
 }
 
 func NewHandler(store Store, writeJSON func(http.ResponseWriter, int, any), writeAPIError func(http.ResponseWriter, int, string, string)) *Handler {

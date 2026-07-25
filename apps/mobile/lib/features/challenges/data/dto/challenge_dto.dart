@@ -16,6 +16,8 @@ class ChallengeDto {
     required this.roomCapacity,
     required this.viewerRoomId,
     required this.viewerHasJoined,
+    required this.coverUrl,
+    required this.viewerCanEdit,
   });
 
   final String id;
@@ -34,6 +36,8 @@ class ChallengeDto {
   final int roomCapacity;
   final String? viewerRoomId;
   final bool viewerHasJoined;
+  final String? coverUrl;
+  final bool viewerCanEdit;
 
   factory ChallengeDto.fromJson(Map<String, dynamic> json) {
     return ChallengeDto(
@@ -57,6 +61,8 @@ class ChallengeDto {
       roomCapacity: json['room_capacity'] as int? ?? 16,
       viewerRoomId: json['viewer_room_id'] as String?,
       viewerHasJoined: json['viewer_has_joined'] as bool? ?? false,
+      coverUrl: json['cover_url'] as String?,
+      viewerCanEdit: json['viewer_can_edit'] as bool? ?? false,
     );
   }
 }

@@ -1,11 +1,12 @@
 import 'dart:typed_data';
 
+import 'package:creative_gym_mobile/core/auth/auth_session_store.dart';
 import 'package:creative_gym_mobile/core/config/app_config.dart';
 import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:dio/dio.dart';
 
 class ApiClient {
-  ApiClient(AppConfig config)
+  ApiClient(AppConfig config, [this._sessionStore])
     : _dio = Dio(
         BaseOptions(
           baseUrl: config.apiBaseUrl,
@@ -15,7 +16,11 @@ class ApiClient {
       ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
+        onRequest: (options, handler) async {
+          final token = await _sessionStore?.readToken();
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
           options.headers['X-Dev-User-Id'] = config.devUserId;
           handler.next(options);
         },
@@ -27,6 +32,7 @@ class ApiClient {
   }
 
   final Dio _dio;
+  final AuthSessionStore? _sessionStore;
 
   Future<Map<String, dynamic>> getJson(String path) async {
     final response = await _dio.get<Map<String, dynamic>>(path);
@@ -51,6 +57,23 @@ class ApiClient {
     ProgressCallback? onSendProgress,
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
+      path,
+      data: formData,
+      onSendProgress: onSendProgress,
+      options: Options(
+        sendTimeout: const Duration(seconds: 90),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
+    return response.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> putMultipart(
+    String path, {
+    required FormData formData,
+    ProgressCallback? onSendProgress,
+  }) async {
+    final response = await _dio.put<Map<String, dynamic>>(
       path,
       data: formData,
       onSendProgress: onSendProgress,

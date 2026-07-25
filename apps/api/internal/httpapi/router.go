@@ -34,6 +34,12 @@ type apiError struct {
 
 func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) http.Handler {
 	mux := http.NewServeMux()
+	authRepository := auth.NewRepository(dbPool)
+	authHandler := auth.NewHandler(
+		authRepository,
+		writeJSON,
+		writeAPIError,
+	)
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
@@ -46,6 +52,8 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 
 		writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
 	})
+	mux.HandleFunc("POST /api/v1/auth/guest", authHandler.CreateGuestSession)
+	mux.HandleFunc("GET /api/v1/auth/me", authHandler.GetCurrentSession)
 
 	challengeHandler := challenges.NewHandler(
 		challenges.NewRepository(dbPool),
@@ -57,26 +65,32 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 		writeJSON,
 		writeAPIError,
 	)
-	var objectStore submissions.ObjectStore
+	var submissionObjectStore submissions.ObjectStore
+	var challengeObjectStore challenges.ObjectStore
 	if cfg.S3.Complete() {
 		s3Store, err := storage.NewS3ObjectStore(context.Background(), cfg.S3)
 		if err != nil {
 			logger.Error("s3 client init failed", "error", err)
 		} else {
-			objectStore = s3Store
+			submissionObjectStore = s3Store
+			challengeObjectStore = s3Store
 		}
 	} else if cfg.S3.Enabled() {
 		logger.Error("s3 config is incomplete; upload routes will be unavailable")
 	}
 	submissionHandler := submissions.NewHandler(
 		submissions.NewRepository(dbPool),
-		objectStore,
+		submissionObjectStore,
 		writeJSON,
 		writeAPIError,
 	)
+	challengeHandler.WithObjectStore(challengeObjectStore)
 
 	mux.HandleFunc("GET /api/v1/challenges/active", challengeHandler.ListActive)
 	mux.HandleFunc("GET /api/v1/challenges/{challengeId}", challengeHandler.GetByID)
+	mux.HandleFunc("GET /api/v1/challenges/{challengeId}/cover", challengeHandler.GetCover)
+	mux.HandleFunc("PUT /api/v1/challenges/{challengeId}/cover", challengeHandler.UploadCover)
+	mux.HandleFunc("DELETE /api/v1/challenges/{challengeId}/cover", challengeHandler.DeleteCover)
 	mux.HandleFunc("POST /api/v1/challenges/{challengeId}/join", roomHandler.JoinChallenge)
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}", roomHandler.GetByID)
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}/submissions/me", submissionHandler.GetMine)
@@ -89,7 +103,10 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 		handler = spaHandler(cfg.WebStaticDir, handler)
 	}
 
-	handler = auth.DevUserMiddleware(cfg.DevUserID)(handler)
+	handler = auth.SessionMiddleware(authRepository)(handler)
+	if cfg.AppEnv != "production" {
+		handler = auth.DevUserMiddleware(cfg.DevUserID)(handler)
+	}
 	handler = corsMiddleware(cfg.CORSAllowedOrigins)(handler)
 	handler = requestLogger(logger)(handler)
 
@@ -172,7 +189,7 @@ func corsMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
 					w.Header().Add("Vary", "Origin")
 				}
 
-				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Dev-User-Id")
 			}
 

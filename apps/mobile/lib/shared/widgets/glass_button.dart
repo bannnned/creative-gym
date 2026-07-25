@@ -1,5 +1,6 @@
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart' as liquid;
 
 enum GlassButtonVariant { primary, tonal, quiet }
 
@@ -22,8 +23,66 @@ class GlassButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPrimary = variant == GlassButtonVariant.primary;
-    final isQuiet = variant == GlassButtonVariant.quiet;
     final foreground = isPrimary ? Colors.white : AppTheme.ink;
+
+    if (variant != GlassButtonVariant.quiet) {
+      return liquid.GlassButton.custom(
+        label: label,
+        onTap: onPressed,
+        width: double.infinity,
+        height: minHeight,
+        useOwnLayer: true,
+        quality: liquid.GlassQuality.standard,
+        style: isPrimary
+            ? liquid.GlassButtonStyle.prominent
+            : liquid.GlassButtonStyle.filled,
+        shape: const liquid.LiquidRoundedRectangle(
+          borderRadius: AppTheme.radiusM,
+        ),
+        interactionScale: 0.98,
+        stretch: 0.12,
+        settings: liquid.LiquidGlassSettings(
+          glassColor: isPrimary
+              ? AppTheme.primaryDark.withValues(alpha: 0.78)
+              : Colors.white.withValues(alpha: 0.48),
+          platformViewFallbackColor: isPrimary
+              ? AppTheme.primaryDark
+              : const Color(0xE6E7ECE8),
+          blur: 8,
+          thickness: isPrimary ? 22 : 16,
+          saturation: 1.15,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.max,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isPrimary ? Colors.white : AppTheme.primaryDark,
+                ),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Material(
       color: Colors.transparent,
@@ -33,35 +92,19 @@ class GlassButton extends StatelessWidget {
         onTap: onPressed,
         child: Ink(
           decoration: BoxDecoration(
-            gradient: isPrimary
-                ? const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppTheme.primaryDark,
-                      AppTheme.primary,
-                      AppTheme.accent,
-                    ],
-                    stops: [0, 0.62, 1],
-                  )
-                : null,
             color: isPrimary
-                ? null
-                : Colors.white.withValues(alpha: isQuiet ? 0.22 : 0.42),
+                ? AppTheme.primaryDark
+                : variant == GlassButtonVariant.quiet
+                ? Colors.transparent
+                : const Color(0xFFE7ECE8),
             border: Border.all(
               color: isPrimary
-                  ? Colors.white.withValues(alpha: 0.18)
-                  : Colors.white.withValues(alpha: 0.58),
+                  ? AppTheme.primaryDark
+                  : variant == GlassButtonVariant.quiet
+                  ? Colors.transparent
+                  : const Color(0xFFDDE3DE),
             ),
             borderRadius: BorderRadius.circular(AppTheme.radiusM),
-            boxShadow: [
-              if (isPrimary)
-                BoxShadow(
-                  color: AppTheme.primaryDark.withValues(alpha: 0.22),
-                  blurRadius: 22,
-                  offset: const Offset(0, 12),
-                ),
-            ],
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: minHeight),
@@ -72,8 +115,12 @@ class GlassButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.max,
                 children: [
                   if (icon != null) ...[
-                    _ButtonIcon(icon: icon!, isPrimary: isPrimary),
-                    const SizedBox(width: 10),
+                    Icon(
+                      icon,
+                      size: 20,
+                      color: isPrimary ? Colors.white : AppTheme.primaryDark,
+                    ),
+                    const SizedBox(width: 8),
                   ],
                   Flexible(
                     child: Text(
@@ -91,33 +138,6 @@ class GlassButton extends StatelessWidget {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ButtonIcon extends StatelessWidget {
-  const _ButtonIcon({required this.icon, required this.isPrimary});
-
-  final IconData icon;
-  final bool isPrimary;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: isPrimary
-            ? Colors.white.withValues(alpha: 0.16)
-            : AppTheme.primaryDark.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(7),
-        child: Icon(
-          icon,
-          size: 18,
-          color: isPrimary ? Colors.white : AppTheme.primaryDark,
         ),
       ),
     );

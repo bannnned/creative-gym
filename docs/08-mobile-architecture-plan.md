@@ -6,6 +6,10 @@ Status: ACTIVE. This is the primary client architecture plan: the MVP client
 is the native Flutter app in `apps/mobile` (Android/iOS). The earlier React
 PWA direction is archived in `12-react-pwa-plan.md`.
 
+The current product-interface direction is defined in
+`14-simple-ux-plan.md`: one current assignment, one primary action, minimal
+navigation, short Russian copy, and no raw technical errors.
+
 This document defines how the Flutter app should grow from the current login
 screen into the MVP described in `07-mvp-plan.md`.
 

@@ -6,10 +6,10 @@ abstract final class AppTheme {
   static const primary = Color(0xFF2F6F5E);
   static const primaryDark = Color(0xFF17483C);
   static const accent = Color(0xFFC66A4A);
-  static const surfaceStroke = Color(0x66FFFFFF);
+  static const surfaceStroke = Color(0xFFE3E7E2);
   static const double radiusM = 14;
-  static const double radiusL = 22;
-  static const double radiusXl = 28;
+  static const double radiusL = 18;
+  static const double radiusXl = 22;
 
   static ThemeData get light {
     final colorScheme = ColorScheme.fromSeed(
@@ -20,7 +20,7 @@ abstract final class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: const Color(0xFFF5F1E8),
+      scaffoldBackgroundColor: const Color(0xFFF8F6F0),
       fontFamily: 'Roboto',
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
@@ -29,8 +29,8 @@ abstract final class AppTheme {
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: ink,
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
@@ -47,8 +47,8 @@ abstract final class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: ink,
-          side: const BorderSide(color: Color(0x66FFFFFF)),
-          backgroundColor: Colors.white.withValues(alpha: 0.28),
+          side: const BorderSide(color: Color(0xFFDDE3DE)),
+          backgroundColor: const Color(0xFFE7ECE8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusM),
           ),

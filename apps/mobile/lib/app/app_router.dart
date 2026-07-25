@@ -1,8 +1,9 @@
 import 'package:creative_gym_mobile/features/auth/presentation/login_screen.dart';
-import 'package:creative_gym_mobile/features/challenges/presentation/challenge_details_screen.dart';
 import 'package:creative_gym_mobile/features/challenges/presentation/weekly_workouts_screen.dart';
+import 'package:creative_gym_mobile/features/challenges/presentation/challenge_selection_screen.dart';
 import 'package:creative_gym_mobile/features/results/presentation/results_screen.dart';
-import 'package:creative_gym_mobile/features/rooms/presentation/gym_room_screen.dart';
+import 'package:creative_gym_mobile/features/profile/presentation/profile_photo_viewer_screen.dart';
+import 'package:creative_gym_mobile/features/profile/presentation/profile_screen.dart';
 import 'package:creative_gym_mobile/features/submissions/presentation/upload_submission_screen.dart';
 import 'package:creative_gym_mobile/features/voting/presentation/voting_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,8 @@ abstract final class AppRoutes {
   static const login = '/login';
   static const challenges = '/challenges';
   static const challengeDetailsPath = '/challenges/:challengeId';
+  static const profile = '/profile';
+  static const profileWorksPath = '/profile/works';
   static const roomPath = '/rooms/:roomId';
   static const roomUploadPath = '/rooms/:roomId/upload';
   static const roomVotePath = '/rooms/:roomId/vote';
@@ -18,6 +21,10 @@ abstract final class AppRoutes {
 
   static String challengeDetails(String challengeId) {
     return '/challenges/$challengeId';
+  }
+
+  static String profileWorks(int index, {required bool winnersOnly}) {
+    return '/profile/works?index=$index&winners=${winnersOnly ? 1 : 0}';
   }
 
   static String room(String roomId) {
@@ -47,21 +54,34 @@ GoRouter createAppRouter() {
       ),
       GoRoute(
         path: AppRoutes.challenges,
-        builder: (context, state) => const WeeklyWorkoutsScreen(),
+        builder: (context, state) => const ChallengeSelectionScreen(),
       ),
       GoRoute(
         path: AppRoutes.challengeDetailsPath,
         builder: (context, state) {
           final challengeId = state.pathParameters['challengeId'] ?? '';
-          return ChallengeDetailsScreen(challengeId: challengeId);
+          return WeeklyWorkoutsScreen(challengeId: challengeId);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profileWorksPath,
+        builder: (context, state) {
+          final index =
+              int.tryParse(state.uri.queryParameters['index'] ?? '') ?? 0;
+          final winnersOnly = state.uri.queryParameters['winners'] == '1';
+          return ProfilePhotoViewerScreen(
+            initialIndex: index,
+            winnersOnly: winnersOnly,
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.roomPath,
-        builder: (context, state) {
-          final roomId = state.pathParameters['roomId'] ?? '';
-          return GymRoomScreen(roomId: roomId);
-        },
+        redirect: (context, state) => AppRoutes.challenges,
       ),
       GoRoute(
         path: AppRoutes.roomUploadPath,

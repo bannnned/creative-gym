@@ -59,6 +59,7 @@ func challengeSelectSQL(whereClause string) string {
 	return `
 SELECT
   c.id::text,
+  c.created_by_user_id::text,
   c.kind,
   c.title,
   c.theme,
@@ -89,8 +90,11 @@ SELECT
     WHERE r.challenge_id = c.id AND rm.user_id = $1
     ORDER BY rm.joined_at ASC
     LIMIT 1
-  ) AS viewer_room_id
+  ) AS viewer_room_id,
+  cc.updated_at AS cover_updated_at,
+  COALESCE(c.created_by_user_id = $1, false) AS viewer_can_edit
 FROM challenges c
+LEFT JOIN challenge_covers cc ON cc.challenge_id = c.id
 ` + whereClause
 }
 
@@ -122,6 +126,7 @@ func scanChallenge(row challengeScanner) (Challenge, error) {
 
 	err := row.Scan(
 		&challenge.ID,
+		&challenge.CreatedByUserID,
 		&challenge.Kind,
 		&challenge.Title,
 		&challenge.Theme,
@@ -135,6 +140,8 @@ func scanChallenge(row challengeScanner) (Challenge, error) {
 		&challenge.ParticipantCount,
 		&challenge.RoomCapacity,
 		&challenge.ViewerRoomID,
+		&challenge.CoverUpdatedAt,
+		&challenge.ViewerCanEdit,
 	)
 	if err != nil {
 		return Challenge{}, err

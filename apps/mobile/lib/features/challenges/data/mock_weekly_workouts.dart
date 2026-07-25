@@ -19,6 +19,8 @@ const mockWeeklyWorkouts = [
       'Фото можно заменить до закрытия приема работ.',
     ],
     isJoined: false,
+    coverUrl: null,
+    viewerCanEdit: false,
   ),
   WeeklyWorkout(
     id: 'quiet-motion',
@@ -38,6 +40,8 @@ const mockWeeklyWorkouts = [
       'Авторство скрыто до завершения голосования.',
     ],
     isJoined: true,
+    coverUrl: null,
+    viewerCanEdit: false,
   ),
   WeeklyWorkout(
     id: 'evening-shapes',
@@ -58,6 +62,8 @@ const mockWeeklyWorkouts = [
       'Результаты показывают наблюдения комнаты, а не публичный рейтинг.',
     ],
     isJoined: true,
+    coverUrl: null,
+    viewerCanEdit: false,
   ),
   WeeklyWorkout(
     id: 'small-rituals',
@@ -78,6 +84,8 @@ const mockWeeklyWorkouts = [
       'Не публикуйте чужие лица без согласия.',
     ],
     isJoined: false,
+    coverUrl: null,
+    viewerCanEdit: false,
   ),
 ];
 

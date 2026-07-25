@@ -5,22 +5,37 @@ Minimal Flutter app for Creative Gym.
 Current state:
 
 - Android project scaffold is generated.
-- Login, Weekly Workouts, Challenge Details, Gym Room, Upload, Voting, and
-  Results screens are implemented.
+- The primary journey is intentionally small: sign in, choose a challenge,
+  current challenge, photo, comparison, and outcome.
+- Sign in opens a minimalist challenge list. Each card contains only an author
+  cover, title, and remaining time.
+- Selecting a card opens the focused challenge screen, which combines the
+  relevant room and submission state and exposes only the next useful action.
 - `dio` repositories connect challenges, rooms, join, and photo submissions to
   the Go API.
 - The upload screen selects a real gallery image, uploads it as multipart data,
   reads its private preview through the API, and supports replace/delete.
 - Default data source mode is `mock`; API mode is enabled via `--dart-define`.
-- Google, Yandex, and GitHub buttons are UI placeholders.
-- Weekly Workouts are grouped by phase: submission, voting, results, and
-  upcoming.
-- Gym Room actions are phase-aware and include demo shortcuts for local testing.
-- Voting supports card tap selection, selected-state feedback, skip pair, local
-  progress, and a completion state.
-- Results use local mock rankings and completion copy.
-- Real OAuth will be connected in a later milestone.
-- OAuth and real voting/results rules are not connected yet.
+- Login has one primary action. In API mode it creates a real guest session,
+  stores the token in platform secure storage, and restores it on later runs.
+- Challenge covers are read from private S3 through the API and cached in
+  memory. Authors can preview the `16:10` crop and replace their own cover.
+- Liquid Glass is isolated behind app-owned scaffold and button adapters and
+  is used for navigation and actions, not photo content.
+- The profile route includes points, prize-place crowns, a winners-only work
+  filter, a three-column gallery, and a full-screen swipe viewer. Profile data
+  is currently local mock data until scoring/profile API rules are defined.
+- The sign-in screen uses a lightweight animated frame deck and respects
+  Reduce Motion.
+- Comparison records a choice by tapping one of two photos.
+- Outcome leads with the user's own work and keeps the wider result collapsed.
+- Raw API and network exception details are converted into human messages.
+- Phone verification will upgrade the current guest instead of replacing the
+  account; provider access for a physical person is being confirmed.
+- Phone identity and real voting/results rules are not connected yet.
+
+The active interface rules are documented in
+`../../docs/14-simple-ux-plan.md`.
 
 ## Data Source Modes
 
@@ -45,7 +60,7 @@ flutter run --dart-define=DATA_SOURCE_MODE=apiWithMockFallback --dart-define=API
 Point the app at the hosted Timeweb API:
 
 ```powershell
-flutter run --dart-define=DATA_SOURCE_MODE=api --dart-define=API_BASE_URL=https://creative.gde-kofe.ru --dart-define=DEV_USER_ID=00000000-0000-0000-0000-000000000001
+flutter run --dart-define=DATA_SOURCE_MODE=api --dart-define=API_BASE_URL=https://creative.gde-kofe.ru
 ```
 
 Submission writes never fall back to mock data, including in

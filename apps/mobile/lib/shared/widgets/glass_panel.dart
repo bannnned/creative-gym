@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -9,7 +7,7 @@ class GlassPanel extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.onTap,
-    this.tint = const Color(0xB3FFFFFF),
+    this.tint = Colors.white,
     this.radius = AppTheme.radiusL,
   });
 
@@ -22,26 +20,20 @@ class GlassPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.circular(radius);
-    final content = ClipRRect(
-      borderRadius: borderRadius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: tint,
-            border: Border.all(color: AppTheme.surfaceStroke),
-            borderRadius: borderRadius,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 28,
-                offset: const Offset(0, 18),
-              ),
-            ],
+    final content = DecoratedBox(
+      decoration: BoxDecoration(
+        color: tint,
+        border: Border.all(color: const Color(0xFFE3E7E2)),
+        borderRadius: borderRadius,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
-          child: Padding(padding: padding, child: child),
-        ),
+        ],
       ),
+      child: Padding(padding: padding, child: child),
     );
 
     if (onTap == null) {
@@ -67,8 +59,7 @@ class SoftChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.44),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+        color: const Color(0xFFE9EEEA),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(

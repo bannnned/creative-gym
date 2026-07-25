@@ -13,6 +13,8 @@ class WeeklyWorkout {
     required this.roomId,
     required this.rules,
     required this.isJoined,
+    required this.coverUrl,
+    required this.viewerCanEdit,
   });
 
   final String id;
@@ -28,4 +30,6 @@ class WeeklyWorkout {
   final String roomId;
   final List<String> rules;
   final bool isJoined;
+  final String? coverUrl;
+  final bool viewerCanEdit;
 }

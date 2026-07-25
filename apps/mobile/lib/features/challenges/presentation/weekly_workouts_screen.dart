@@ -1,8 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
+import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
 import 'package:creative_gym_mobile/features/challenges/domain/weekly_workout.dart';
-import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
+import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
+import 'package:creative_gym_mobile/features/submissions/domain/submission.dart';
+import 'package:creative_gym_mobile/shared/widgets/app_glass_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
@@ -10,524 +15,421 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class WeeklyWorkoutsScreen extends StatefulWidget {
-  const WeeklyWorkoutsScreen({super.key});
+  const WeeklyWorkoutsScreen({super.key, required this.challengeId});
+
+  final String challengeId;
 
   @override
   State<WeeklyWorkoutsScreen> createState() => _WeeklyWorkoutsScreenState();
 }
 
 class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
-  late Future<List<WeeklyWorkout>> _workoutsFuture;
+  late Future<_HomeData> _homeFuture;
+  bool _isJoining = false;
+  bool _isUploadingCover = false;
 
   @override
   void initState() {
     super.initState();
-    _loadWorkouts();
+    _homeFuture = _loadHome();
   }
 
-  void _loadWorkouts() {
+  Future<_HomeData> _loadHome() async {
+    final workout = await appDependencies.challenges.getWorkoutById(
+      widget.challengeId,
+    );
+    if (workout == null) {
+      return const _HomeData();
+    }
+
+    GymRoom? room;
+    Submission? submission;
+    Uint8List? photoBytes;
+
+    if (workout.isJoined && workout.roomId.isNotEmpty) {
+      room = await appDependencies.rooms.getRoomById(workout.roomId);
+      if (room != null && room.hasSubmission) {
+        submission = await appDependencies.submissions.getMine(room.id);
+        if (submission != null) {
+          try {
+            photoBytes = await appDependencies.submissions.loadMedia(
+              submission,
+            );
+          } catch (_) {
+            // A missing preview must not hide the next useful action.
+          }
+        }
+      }
+    }
+
+    return _HomeData(
+      workout: workout,
+      room: room,
+      submission: submission,
+      photoBytes: photoBytes,
+    );
+  }
+
+  void _reload() {
     setState(() {
-      _workoutsFuture = appDependencies.challenges.getActiveWorkouts();
+      _homeFuture = _loadHome();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Назад',
-          onPressed: () => context.go(AppRoutes.login),
-          icon: const Icon(Icons.arrow_back),
-        ),
-        title: const Text('Weekly Workouts'),
-      ),
-      body: FutureBuilder<List<WeeklyWorkout>>(
-        future: _workoutsFuture,
+    return AppGlassScaffold(
+      showBackButton: true,
+      body: FutureBuilder<_HomeData>(
+        future: _homeFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel(
-              message: 'Загрузка Weekly Workouts...',
-            );
+            return const AsyncLoadingPanel(message: 'Загружаем задание...');
           }
 
           if (snapshot.hasError) {
             return AsyncErrorPanel(
-              message: snapshot.error.toString(),
-              onRetry: _loadWorkouts,
+              message: userErrorMessage(snapshot.error),
+              onRetry: _reload,
             );
           }
 
-          final workouts = snapshot.data ?? const <WeeklyWorkout>[];
-          final sections = _WorkoutSectionData.sections(workouts);
+          final data = snapshot.data ?? const _HomeData();
+          if (data.workout == null) {
+            return _EmptyHome(onRetry: _reload);
+          }
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-            children: [
-              const _WeeklyWorkoutsHeader(),
-              const SizedBox(height: 18),
-              for (final section in sections)
-                if (section.workouts.isNotEmpty) ...[
-                  _WeeklyWorkoutSection(section: section),
-                  const SizedBox(height: 22),
-                ],
-            ],
+          return _HomeContent(
+            data: data,
+            isJoining: _isJoining,
+            onPrimaryAction: () => _handlePrimaryAction(data),
+            onShowRules: () => _showRules(data.workout!),
+            onChangeCover: data.workout!.viewerCanEdit
+                ? () => _changeCover(data.workout!)
+                : null,
+            isUploadingCover: _isUploadingCover,
           );
         },
       ),
     );
   }
-}
 
-class _WorkoutSectionData {
-  const _WorkoutSectionData({
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.workouts,
-  });
+  Future<void> _handlePrimaryAction(_HomeData data) async {
+    final workout = data.workout!;
+    final room = data.room;
 
-  final String title;
-  final String description;
-  final IconData icon;
-  final List<WeeklyWorkout> workouts;
+    if (room == null) {
+      if (_isJoining) {
+        return;
+      }
+      setState(() {
+        _isJoining = true;
+      });
+      try {
+        final joinedRoom = await appDependencies.challenges.joinChallenge(
+          workout.id,
+        );
+        if (!mounted) {
+          return;
+        }
+        _openRoomAction(joinedRoom);
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isJoining = false;
+          });
+        }
+      }
+      return;
+    }
 
-  static List<_WorkoutSectionData> sections(List<WeeklyWorkout> workouts) {
-    return [
-      _WorkoutSectionData(
-        title: 'Прием работ',
-        description: 'Можно присоединиться и загрузить одну фотографию.',
-        icon: Icons.add_photo_alternate_outlined,
-        workouts: _byPhase(workouts, 'Прием работ'),
-      ),
-      _WorkoutSectionData(
-        title: 'Голосование сейчас',
-        description: 'Анонимные пары открыты для joined Gym Rooms.',
-        icon: Icons.compare_arrows,
-        workouts: _byPhase(workouts, 'Голосование'),
-      ),
-      _WorkoutSectionData(
-        title: 'Завершенные',
-        description: 'Результаты комнаты уже можно посмотреть.',
-        icon: Icons.emoji_events_outlined,
-        workouts: _byPhase(workouts, 'Результаты'),
-      ),
-      _WorkoutSectionData(
-        title: 'Скоро',
-        description: 'Тренировки, которые появятся следующими.',
-        icon: Icons.schedule,
-        workouts: _byPhase(workouts, 'Скоро старт'),
-      ),
-    ];
+    _openRoomAction(room);
   }
 
-  static List<WeeklyWorkout> _byPhase(
-    List<WeeklyWorkout> workouts,
-    String phase,
-  ) {
-    return workouts
-        .where((workout) => workout.phase == phase)
-        .toList(growable: false);
+  void _openRoomAction(GymRoom room) {
+    switch (room.phase) {
+      case GymRoomPhase.upcoming:
+        return;
+      case GymRoomPhase.submission:
+        context.go(AppRoutes.roomUpload(room.id));
+      case GymRoomPhase.voting:
+        context.go(AppRoutes.roomVote(room.id, demo: _isDemoRoom(room.id)));
+      case GymRoomPhase.results:
+        context.go(AppRoutes.roomResults(room.id, demo: _isDemoRoom(room.id)));
+    }
   }
-}
 
-class _WeeklyWorkoutsHeader extends StatelessWidget {
-  const _WeeklyWorkoutsHeader();
+  bool _isDemoRoom(String roomId) => !roomId.startsWith('10000000-');
 
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Активные фото-тренировки',
-            style: textTheme.headlineSmall?.copyWith(
-              color: AppTheme.ink,
-              fontWeight: FontWeight.w900,
-              height: 1.08,
+  Future<void> _showRules(WeeklyWorkout workout) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Условия',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 16),
+                for (final rule in workout.rules) ...[
+                  Text('• $rule'),
+                  const SizedBox(height: 10),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Выберите Weekly Workout, чтобы попасть в небольшую Gym Room и выполнить одно фото-задание за неделю.',
-            style: textTheme.bodyMedium?.copyWith(
-              color: AppTheme.mutedInk,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
-}
 
-class _WeeklyWorkoutSection extends StatelessWidget {
-  const _WeeklyWorkoutSection({required this.section});
+  Future<void> _changeCover(WeeklyWorkout workout) async {
+    if (_isUploadingCover) {
+      return;
+    }
 
-  final _WorkoutSectionData section;
+    try {
+      final photo = await appDependencies.photoPicker.pickFromGallery();
+      if (photo == null || !mounted) {
+        return;
+      }
+      if (photo.bytes.length > 5 * 1024 * 1024) {
+        throw StateError('Обложка должна быть не больше 5 МБ.');
+      }
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.44),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.56)),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(9),
-                child: Icon(
-                  section.icon,
-                  color: AppTheme.primaryDark,
-                  size: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
+      final shouldUpload = await showModalBottomSheet<bool>(
+        context: context,
+        showDragHandle: true,
+        isScrollControlled: true,
+        builder: (context) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    section.title,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppTheme.ink,
-                      fontWeight: FontWeight.w900,
+                    'Новая обложка',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    section.description,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.mutedInk,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(height: 16),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 10,
+                      child: Image.memory(photo.bytes, fit: BoxFit.cover),
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Так обложка будет кадрироваться в списке.',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppTheme.mutedInk),
+                  ),
+                  const SizedBox(height: 20),
+                  GlassButton(
+                    label: 'Сохранить обложку',
+                    onPressed: () => Navigator.of(context).pop(true),
                   ),
                 ],
               ),
             ),
-            SoftChip(
-              icon: Icons.layers_outlined,
-              label: '${section.workouts.length}',
-            ),
-          ],
+          );
+        },
+      );
+
+      if (shouldUpload != true || !mounted) {
+        return;
+      }
+
+      setState(() {
+        _isUploadingCover = true;
+      });
+      await appDependencies.challenges.uploadCover(workout.id, photo);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Обложка сохранена')));
+      _reload();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingCover = false;
+        });
+      }
+    }
+  }
+}
+
+class _HomeContent extends StatelessWidget {
+  const _HomeContent({
+    required this.data,
+    required this.isJoining,
+    required this.onPrimaryAction,
+    required this.onShowRules,
+    required this.onChangeCover,
+    required this.isUploadingCover,
+  });
+
+  final _HomeData data;
+  final bool isJoining;
+  final VoidCallback onPrimaryAction;
+  final VoidCallback onShowRules;
+  final VoidCallback? onChangeCover;
+  final bool isUploadingCover;
+
+  @override
+  Widget build(BuildContext context) {
+    final workout = data.workout!;
+    final room = data.room;
+    final action = _HomeAction.from(room, workout: workout);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+      children: [
+        Text(
+          'Задание недели',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppTheme.primaryDark,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: 12),
-        for (final workout in section.workouts) ...[
-          _WeeklyWorkoutCard(workout: workout),
-          if (workout != section.workouts.last) const SizedBox(height: 18),
+        Text(
+          workout.title,
+          key: const ValueKey('current-workout-title'),
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            color: AppTheme.ink,
+            fontWeight: FontWeight.w800,
+            height: 1.08,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          workout.description,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppTheme.mutedInk,
+            height: 1.45,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            TextButton(
+              onPressed: onShowRules,
+              style: TextButton.styleFrom(
+                alignment: Alignment.centerLeft,
+                padding: EdgeInsets.zero,
+              ),
+              child: const Text('Условия'),
+            ),
+            if (onChangeCover != null) ...[
+              const Spacer(),
+              TextButton.icon(
+                key: const ValueKey('change-cover-button'),
+                onPressed: isUploadingCover ? null : onChangeCover,
+                icon: const Icon(Icons.photo_outlined, size: 18),
+                label: Text(isUploadingCover ? 'Сохраняем...' : 'Обложка'),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 24),
+        if (data.photoBytes != null) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppTheme.radiusL),
+            child: AspectRatio(
+              aspectRatio: 4 / 5,
+              child: Image.memory(data.photoBytes!, fit: BoxFit.cover),
+            ),
+          ),
+          const SizedBox(height: 18),
+        ] else if (room?.hasSubmission == true) ...[
+          const _AcceptedPhotoPlaceholder(),
+          const SizedBox(height: 18),
         ],
+        GlassPanel(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                action.status,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppTheme.ink,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                room?.deadlineLabel ?? workout.submissionDeadlineLabel,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.mutedInk),
+              ),
+              if (action.buttonLabel != null) ...[
+                const SizedBox(height: 20),
+                GlassButton(
+                  key: const ValueKey('primary-workout-action'),
+                  label: isJoining ? 'Подождите...' : action.buttonLabel!,
+                  onPressed: onPrimaryAction,
+                ),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }
 }
 
-class _WeeklyWorkoutCard extends StatelessWidget {
-  const _WeeklyWorkoutCard({required this.workout});
-
-  final WeeklyWorkout workout;
+class _AcceptedPhotoPlaceholder extends StatelessWidget {
+  const _AcceptedPhotoPlaceholder();
 
   @override
   Widget build(BuildContext context) {
-    return GlassPanel(
-      key: ValueKey('weekly-workout-${workout.id}'),
-      onTap: () => context.go(AppRoutes.challengeDetails(workout.id)),
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _WorkoutVisual(workout: workout),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  workout.description,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.mutedInk,
-                    height: 1.35,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: [
-                    _MetaCapsule(
-                      icon: Icons.schedule,
-                      label: workout.submissionDeadlineLabel,
-                    ),
-                    _MetaCapsule(
-                      icon: Icons.groups_outlined,
-                      label: workout.participantsLabel,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: GlassButton(
-                    onPressed: () =>
-                        context.go(AppRoutes.challengeDetails(workout.id)),
-                    icon: workout.isJoined
-                        ? Icons.meeting_room_outlined
-                        : Icons.arrow_forward,
-                    label: workout.isJoined ? 'Открыть Gym Room' : 'Подробнее',
-                    variant: workout.isJoined
-                        ? GlassButtonVariant.primary
-                        : GlassButtonVariant.tonal,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WorkoutVisual extends StatelessWidget {
-  const _WorkoutVisual({required this.workout});
-
-  final WeeklyWorkout workout;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = _PhotoPalette.forWorkout(workout.id);
-    final textTheme = Theme.of(context).textTheme;
-
-    return SizedBox(
-      height: 204,
-      width: double.infinity,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: palette.colors,
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(-0.72, -0.68),
-                  radius: 0.86,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.5),
-                    Colors.white.withValues(alpha: 0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: -20,
-            bottom: 26,
-            child: _PhotoBlob(
-              size: 116,
-              color: palette.highlight.withValues(alpha: 0.34),
-            ),
-          ),
-          Positioned(
-            right: -26,
-            top: -18,
-            child: _SoftRing(color: Colors.white.withValues(alpha: 0.28)),
-          ),
-          Positioned(
-            right: 24,
-            bottom: -28,
-            child: _SoftRing(color: Colors.white.withValues(alpha: 0.14)),
-          ),
-          Positioned(
-            right: 16,
-            top: 16,
-            child: _PhotoStatusBadge(label: workout.phase),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white.withValues(alpha: 0),
-                    Colors.white.withValues(alpha: 0.56),
-                    Colors.white.withValues(alpha: 0.88),
-                  ],
-                  stops: const [0, 0.55, 1],
-                ),
-              ),
-              child: const SizedBox(height: 74),
-            ),
-          ),
-          Positioned(
-            left: 18,
-            right: 18,
-            bottom: 28,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.28),
-                    ),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.camera_alt_outlined,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  workout.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.headlineSmall?.copyWith(
-                    color: AppTheme.ink,
-                    fontWeight: FontWeight.w900,
-                    height: 1.02,
-                    shadows: [
-                      Shadow(
-                        color: Colors.white.withValues(alpha: 0.32),
-                        blurRadius: 12,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  workout.theme,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.labelLarge?.copyWith(
-                    color: AppTheme.primaryDark,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PhotoPalette {
-  const _PhotoPalette({required this.colors, required this.highlight});
-
-  final List<Color> colors;
-  final Color highlight;
-
-  static _PhotoPalette forWorkout(String id) {
-    return switch (id) {
-      'morning-light' => const _PhotoPalette(
-        colors: [Color(0xFFE8B96E), Color(0xFF8ABBAA), Color(0xFF173F35)],
-        highlight: Color(0xFFFFE1A6),
-      ),
-      'quiet-motion' => const _PhotoPalette(
-        colors: [Color(0xFFAFCDF4), Color(0xFF87A89B), Color(0xFF24334D)],
-        highlight: Color(0xFFDBEAFF),
-      ),
-      'evening-shapes' => const _PhotoPalette(
-        colors: [Color(0xFFDDBB8D), Color(0xFFC66A4A), Color(0xFF17211C)],
-        highlight: Color(0xFFFFD4A8),
-      ),
-      _ => const _PhotoPalette(
-        colors: [Color(0xFFE9B9A6), Color(0xFFA9CEB0), Color(0xFF6E4654)],
-        highlight: Color(0xFFF2D6C8),
-      ),
-    };
-  }
-}
-
-class _PhotoBlob extends StatelessWidget {
-  const _PhotoBlob({required this.size, required this.color});
-
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(size * 0.42),
-      ),
-    );
-  }
-}
-
-class _SoftRing extends StatelessWidget {
-  const _SoftRing({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 112,
-      height: 112,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: color, width: 20),
-      ),
-    );
-  }
-}
-
-class _PhotoStatusBadge extends StatelessWidget {
-  const _PhotoStatusBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
+    return AspectRatio(
+      aspectRatio: 4 / 3,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xFFE7ECE8),
+          borderRadius: BorderRadius.circular(AppTheme.radiusL),
+        ),
+        child: const Center(
+          child: Icon(
+            Icons.check_circle_outline,
+            color: AppTheme.primaryDark,
+            size: 40,
           ),
         ),
       ),
@@ -535,41 +437,88 @@ class _PhotoStatusBadge extends StatelessWidget {
   }
 }
 
-class _MetaCapsule extends StatelessWidget {
-  const _MetaCapsule({required this.icon, required this.label});
+class _EmptyHome extends StatelessWidget {
+  const _EmptyHome({required this.onRetry});
 
-  final IconData icon;
-  final String label;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.34),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-        borderRadius: BorderRadius.circular(14),
-      ),
+    return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        child: Row(
+        padding: const EdgeInsets.all(28),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: AppTheme.mutedInk),
-            const SizedBox(width: 7),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.mutedInk,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
+            Text(
+              'Новых заданий пока нет',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
+            const SizedBox(height: 8),
+            const Text('Загляните немного позже.'),
+            const SizedBox(height: 20),
+            TextButton(onPressed: onRetry, child: const Text('Обновить')),
           ],
         ),
       ),
     );
   }
+}
+
+class _HomeAction {
+  const _HomeAction({required this.status, this.buttonLabel});
+
+  final String status;
+  final String? buttonLabel;
+
+  factory _HomeAction.from(GymRoom? room, {required WeeklyWorkout workout}) {
+    if (room == null) {
+      final phase = workout.phase.toLowerCase();
+      if (phase.contains('скоро')) {
+        return const _HomeAction(status: 'Задание скоро начнётся');
+      }
+      if (phase.contains('голос') || phase.contains('результат')) {
+        return const _HomeAction(status: 'Участие уже закрыто');
+      }
+      return const _HomeAction(
+        status: 'Можно начать сейчас',
+        buttonLabel: 'Начать',
+      );
+    }
+
+    return switch (room.phase) {
+      GymRoomPhase.upcoming => const _HomeAction(
+        status: 'Задание скоро начнётся',
+      ),
+      GymRoomPhase.submission =>
+        room.hasSubmission
+            ? const _HomeAction(
+                status: 'Фото принято',
+                buttonLabel: 'Открыть фото',
+              )
+            : const _HomeAction(
+                status: 'Добавьте одну фотографию',
+                buttonLabel: 'Добавить фото',
+              ),
+      GymRoomPhase.voting => const _HomeAction(
+        status: 'Работы собраны',
+        buttonLabel: 'Сравнить фотографии',
+      ),
+      GymRoomPhase.results => const _HomeAction(
+        status: 'Тренировка завершена',
+        buttonLabel: 'Посмотреть итог',
+      ),
+    };
+  }
+}
+
+class _HomeData {
+  const _HomeData({this.workout, this.room, this.submission, this.photoBytes});
+
+  final WeeklyWorkout? workout;
+  final GymRoom? room;
+  final Submission? submission;
+  final Uint8List? photoBytes;
 }

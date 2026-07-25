@@ -60,6 +60,8 @@ Expected response:
 Available challenge endpoints:
 
 ```txt
+POST /api/v1/auth/guest
+GET /api/v1/auth/me
 GET /api/v1/challenges/active
 GET /api/v1/challenges/{challengeId}
 POST /api/v1/challenges/{challengeId}/join
@@ -70,8 +72,13 @@ DELETE /api/v1/submissions/{submissionId}
 GET /api/v1/submissions/{submissionId}/media
 ```
 
-Before OAuth is implemented, API requests use a dev user. The server reads
-`X-Dev-User-Id` when present and falls back to `DEV_USER_ID`.
+API-backed clients create an opaque guest session and authenticate with
+`Authorization: Bearer <token>`. Only the token hash is stored in PostgreSQL.
+In non-production environments, the server can still read `X-Dev-User-Id` and
+fall back to `DEV_USER_ID`. Production ignores the dev-user mechanism.
+
+The guest session is designed to be upgraded in place with a verified phone
+identity later; see `../../docs/15-authentication-plan.md`.
 
 ## Test
 
@@ -94,7 +101,7 @@ Initial variables:
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_PASSWORD_HEX`, `DB_NAME`,
   `DB_SSLMODE` - optional split PostgreSQL connection variables, used when
   `DATABASE_URL` and `DATABASE_URL_HEX` are empty.
-- `DEV_USER_ID` - temporary user id for pre-OAuth development.
+- `DEV_USER_ID` - temporary non-production user id.
 - `CORS_ALLOWED_ORIGINS` - comma-separated browser origins allowed by CORS.
 - `WEB_STATIC_DIR` - optional directory with the built React PWA.
 - `S3_ENDPOINT` - S3-compatible endpoint, for example `https://s3.twcstorage.ru`.

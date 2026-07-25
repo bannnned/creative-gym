@@ -2,6 +2,10 @@
 
 Date: 2026-06-11
 
+Status: HISTORICAL. The interface described below was replaced on 2026-07-25
+by the action-focused direction in `14-simple-ux-plan.md`. Keep this document
+only as a record of the earlier Flutter baseline.
+
 This document records the current baseline for the Flutter mobile app before
 larger feature work starts. It is a reference point for what exists, what has
 been verified, and what should be treated as known technical debt.

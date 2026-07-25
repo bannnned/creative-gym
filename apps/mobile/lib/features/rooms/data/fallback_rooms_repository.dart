@@ -4,10 +4,7 @@ import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/rooms_repository.dart';
 
 class FallbackRoomsRepository implements RoomsRepository {
-  FallbackRoomsRepository({
-    required this._api,
-    required this._mock,
-  });
+  FallbackRoomsRepository({required this._api, required this._mock});
 
   final ApiRoomsRepository _api;
   final MockRoomsRepository _mock;

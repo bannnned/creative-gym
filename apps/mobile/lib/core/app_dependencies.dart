@@ -1,5 +1,7 @@
+import 'package:creative_gym_mobile/core/auth/auth_session_store.dart';
 import 'package:creative_gym_mobile/core/config/app_config.dart';
 import 'package:creative_gym_mobile/core/network/api_client.dart';
+import 'package:creative_gym_mobile/features/auth/data/auth_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/data/api_challenges_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/data/fallback_challenges_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/data/mock_challenges_repository.dart';
@@ -24,6 +26,7 @@ void bootstrapApp({AppConfig? config}) {
 class AppDependencies {
   AppDependencies({
     required this.config,
+    required this.auth,
     required this.challenges,
     required this.rooms,
     required this.submissions,
@@ -31,6 +34,7 @@ class AppDependencies {
   });
 
   final AppConfig config;
+  final AuthRepository auth;
   final ChallengesRepository challenges;
   final RoomsRepository rooms;
   final SubmissionsRepository submissions;
@@ -38,7 +42,17 @@ class AppDependencies {
 
   factory AppDependencies.create({AppConfig? config}) {
     final resolvedConfig = config ?? AppConfig.fromEnvironment();
-    final apiClient = ApiClient(resolvedConfig);
+    final sessionStore = switch (resolvedConfig.mode) {
+      DataSourceMode.mock => MemoryAuthSessionStore(),
+      DataSourceMode.api ||
+      DataSourceMode.apiWithMockFallback => SecureAuthSessionStore(),
+    };
+    final apiClient = ApiClient(resolvedConfig, sessionStore);
+    final auth = AuthRepository(
+      apiClient,
+      sessionStore,
+      resolvedConfig.mode != DataSourceMode.mock,
+    );
     final mockChallenges = const MockChallengesRepository();
     final apiChallenges = ApiChallengesRepository(apiClient);
     final mockRooms = const MockRoomsRepository();
@@ -78,6 +92,7 @@ class AppDependencies {
 
     return AppDependencies(
       config: resolvedConfig,
+      auth: auth,
       challenges: challenges,
       rooms: rooms,
       submissions: submissions,

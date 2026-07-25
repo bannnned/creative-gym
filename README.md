@@ -9,10 +9,11 @@ The first product direction is photography: users join weekly photo challenges, 
 This repository is a monorepo for the first Creative Gym photography slice.
 
 The Flutter app in `apps/mobile` is the primary and only MVP client
-(Android/iOS). It has screens for login, Weekly Workouts, challenge details,
-Gym Room, upload, voting, and results. OAuth, backend voting rules, and full
-API-backed data are not connected yet. Photo submission upload is connected
-through the Go API and S3-compatible object storage.
+(Android/iOS). Its minimal primary journey is sign in, current assignment,
+photo, comparison, and outcome. Challenge, room, and submission state are
+combined into one action-focused home screen. OAuth and backend voting/results
+rules are not connected yet. Photo submission upload is connected through the
+Go API and S3-compatible object storage.
 
 The React PWA in `apps/web` is an archived web experiment: the code stays in
 the repository untouched, but it is no longer the product client.
@@ -37,6 +38,7 @@ submissions.
 - [Backend Deploy Plan](docs/11-backend-deploy-plan.md) - first Timeweb deployment shape and cost tradeoffs.
 - [React PWA Plan](docs/12-react-pwa-plan.md) - archived web frontend direction, kept as historical reference.
 - [Backend Operations](docs/13-backend-operations.md) - current Timeweb VPS topology, verified state, health checks, and runbooks.
+- [Simple UX Plan](docs/14-simple-ux-plan.md) - active minimal-interface direction for the Flutter app.
 
 ## North Star
 
