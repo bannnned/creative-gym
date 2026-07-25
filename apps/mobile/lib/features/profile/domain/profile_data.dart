@@ -21,6 +21,7 @@ class ProfileWork {
     required this.paletteStart,
     required this.paletteEnd,
     required this.composition,
+    this.mediaUrl = '',
     this.place,
   });
 
@@ -29,6 +30,7 @@ class ProfileWork {
   final int paletteStart;
   final int paletteEnd;
   final int composition;
+  final String mediaUrl;
   final int? place;
 
   bool get isWinner => place != null && place! >= 1 && place! <= 3;

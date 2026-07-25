@@ -1,10 +1,12 @@
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
-import 'package:creative_gym_mobile/features/profile/data/mock_profile_data.dart';
+import 'package:creative_gym_mobile/core/app_dependencies.dart';
+import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
 import 'package:creative_gym_mobile/features/profile/domain/profile_data.dart';
 import 'package:creative_gym_mobile/features/profile/presentation/widgets/crown_icon.dart';
 import 'package:creative_gym_mobile/features/profile/presentation/widgets/profile_work_artwork.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_glass_scaffold.dart';
+import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -17,68 +19,125 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _winnersOnly = false;
+  late Future<ProfileData> _profileFuture;
 
-  List<ProfileWork> get _visibleWorks {
-    if (!_winnersOnly) {
-      return mockProfileData.works;
-    }
-    return mockProfileData.works
-        .where((work) => work.isWinner)
-        .toList(growable: false);
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = appDependencies.profile.getProfile();
+  }
+
+  void _reload() {
+    setState(() => _profileFuture = appDependencies.profile.getProfile());
   }
 
   @override
   Widget build(BuildContext context) {
-    final works = _visibleWorks;
-
     return AppGlassScaffold(
       title: 'Профиль',
       showBackButton: true,
-      body: ListView(
-        key: const ValueKey('profile-screen'),
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-        children: [
-          const _ProfileAvatar(),
-          const SizedBox(height: 24),
-          const _StatsBlock(data: mockProfileData),
-          const SizedBox(height: 30),
-          Row(
-            children: [
-              Text(
-                'Работы',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppTheme.ink,
-                  fontWeight: FontWeight.w800,
+      body: FutureBuilder<ProfileData>(
+        future: _profileFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const AsyncLoadingPanel(message: 'Загружаем профиль...');
+          }
+          if (snapshot.hasError) {
+            return AsyncErrorPanel(
+              message: userErrorMessage(snapshot.error),
+              onRetry: _reload,
+            );
+          }
+          final data =
+              snapshot.data ??
+              const ProfileData(
+                points: 0,
+                firstPlaces: 0,
+                secondPlaces: 0,
+                thirdPlaces: 0,
+                works: [],
+              );
+          return _ProfileContent(
+            data: data,
+            winnersOnly: _winnersOnly,
+            onWinnersChanged: (value) => setState(() => _winnersOnly = value),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ProfileContent extends StatelessWidget {
+  const _ProfileContent({
+    required this.data,
+    required this.winnersOnly,
+    required this.onWinnersChanged,
+  });
+
+  final ProfileData data;
+  final bool winnersOnly;
+  final ValueChanged<bool> onWinnersChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final works = winnersOnly
+        ? data.works.where((work) => work.isWinner).toList(growable: false)
+        : data.works;
+    return ListView(
+      key: const ValueKey('profile-screen'),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+      children: [
+        const _ProfileAvatar(),
+        const SizedBox(height: 24),
+        _StatsBlock(data: data),
+        const SizedBox(height: 30),
+        Row(
+          children: [
+            Text(
+              'Работы',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: AppTheme.ink,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'Победители',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppTheme.mutedInk,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            SizedBox(
+              width: 46,
+              height: 36,
+              child: FittedBox(
+                child: Switch.adaptive(
+                  key: const ValueKey('winners-toggle'),
+                  value: winnersOnly,
+                  onChanged: onWinnersChanged,
                 ),
               ),
-              const Spacer(),
-              Text(
-                'Победители',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.mutedInk,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 46,
-                height: 36,
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: Switch.adaptive(
-                    key: const ValueKey('winners-toggle'),
-                    value: _winnersOnly,
-                    onChanged: (value) {
-                      setState(() {
-                        _winnersOnly = value;
-                      });
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (works.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 36),
+            child: Text(
+              winnersOnly
+                  ? 'Призовых работ пока нет.'
+                  : 'Здесь появятся ваши фотографии.',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.mutedInk),
+            ),
+          )
+        else
           GridView.builder(
             key: const ValueKey('profile-work-grid'),
             shrinkWrap: true,
@@ -94,13 +153,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return _WorkTile(
                 work: work,
                 onTap: () => context.push(
-                  AppRoutes.profileWorks(index, winnersOnly: _winnersOnly),
+                  AppRoutes.profileWorks(index, winnersOnly: winnersOnly),
+                  extra: works,
                 ),
               );
             },
           ),
-        ],
-      ),
+      ],
     );
   }
 }

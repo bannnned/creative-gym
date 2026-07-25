@@ -6,6 +6,15 @@ import 'package:creative_gym_mobile/features/challenges/data/api_challenges_repo
 import 'package:creative_gym_mobile/features/challenges/data/fallback_challenges_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/data/mock_challenges_repository.dart';
 import 'package:creative_gym_mobile/features/challenges/domain/challenges_repository.dart';
+import 'package:creative_gym_mobile/features/media/data/api_media_repository.dart';
+import 'package:creative_gym_mobile/features/media/data/mock_media_repository.dart';
+import 'package:creative_gym_mobile/features/media/domain/media_repository.dart';
+import 'package:creative_gym_mobile/features/profile/data/api_profile_repository.dart';
+import 'package:creative_gym_mobile/features/profile/data/mock_profile_repository.dart';
+import 'package:creative_gym_mobile/features/profile/domain/profile_repository.dart';
+import 'package:creative_gym_mobile/features/results/data/api_results_repository.dart';
+import 'package:creative_gym_mobile/features/results/data/mock_results_repository.dart';
+import 'package:creative_gym_mobile/features/results/domain/results_repository.dart';
 import 'package:creative_gym_mobile/features/rooms/data/api_rooms_repository.dart';
 import 'package:creative_gym_mobile/features/rooms/data/fallback_rooms_repository.dart';
 import 'package:creative_gym_mobile/features/rooms/data/mock_rooms_repository.dart';
@@ -16,6 +25,9 @@ import 'package:creative_gym_mobile/features/submissions/data/mock_photo_picker.
 import 'package:creative_gym_mobile/features/submissions/data/mock_submissions_repository.dart';
 import 'package:creative_gym_mobile/features/submissions/domain/photo_picker.dart';
 import 'package:creative_gym_mobile/features/submissions/domain/submissions_repository.dart';
+import 'package:creative_gym_mobile/features/voting/data/api_voting_repository.dart';
+import 'package:creative_gym_mobile/features/voting/data/mock_voting_repository.dart';
+import 'package:creative_gym_mobile/features/voting/domain/voting_repository.dart';
 
 late AppDependencies appDependencies;
 
@@ -31,6 +43,10 @@ class AppDependencies {
     required this.rooms,
     required this.submissions,
     required this.photoPicker,
+    required this.voting,
+    required this.results,
+    required this.profile,
+    required this.media,
   });
 
   final AppConfig config;
@@ -39,6 +55,10 @@ class AppDependencies {
   final RoomsRepository rooms;
   final SubmissionsRepository submissions;
   final PhotoPicker photoPicker;
+  final VotingRepository voting;
+  final ResultsRepository results;
+  final ProfileRepository profile;
+  final MediaRepository media;
 
   factory AppDependencies.create({AppConfig? config}) {
     final resolvedConfig = config ?? AppConfig.fromEnvironment();
@@ -59,6 +79,12 @@ class AppDependencies {
     final apiRooms = ApiRoomsRepository(apiClient);
     final mockSubmissions = MockSubmissionsRepository();
     final apiSubmissions = ApiSubmissionsRepository(apiClient);
+    final mockVoting = MockVotingRepository();
+    final apiVoting = ApiVotingRepository(apiClient);
+    const mockResults = MockResultsRepository();
+    final apiResults = ApiResultsRepository(apiClient);
+    const mockProfile = MockProfileRepository();
+    final apiProfile = ApiProfileRepository(apiClient);
 
     final challenges = switch (resolvedConfig.mode) {
       DataSourceMode.mock => mockChallenges,
@@ -90,6 +116,24 @@ class AppDependencies {
       DataSourceMode.apiWithMockFallback => ImagePickerPhotoPicker(),
     };
 
+    final voting = switch (resolvedConfig.mode) {
+      DataSourceMode.mock => mockVoting,
+      DataSourceMode.api || DataSourceMode.apiWithMockFallback => apiVoting,
+    };
+    final results = switch (resolvedConfig.mode) {
+      DataSourceMode.mock => mockResults,
+      DataSourceMode.api || DataSourceMode.apiWithMockFallback => apiResults,
+    };
+    final profile = switch (resolvedConfig.mode) {
+      DataSourceMode.mock => mockProfile,
+      DataSourceMode.api || DataSourceMode.apiWithMockFallback => apiProfile,
+    };
+    final media = switch (resolvedConfig.mode) {
+      DataSourceMode.mock => const MockMediaRepository(),
+      DataSourceMode.api ||
+      DataSourceMode.apiWithMockFallback => ApiMediaRepository(apiClient),
+    };
+
     return AppDependencies(
       config: resolvedConfig,
       auth: auth,
@@ -97,6 +141,10 @@ class AppDependencies {
       rooms: rooms,
       submissions: submissions,
       photoPicker: photoPicker,
+      voting: voting,
+      results: results,
+      profile: profile,
+      media: media,
     );
   }
 }

@@ -591,6 +591,8 @@ Done when:
 
 ### Milestone B9: Voting And Results
 
+Status: done.
+
 Deliver:
 
 - vote pair endpoint;
@@ -637,11 +639,13 @@ Do not update docs for internal refactors that do not change behavior or setup.
 
 ## Immediate Next Step
 
-Milestones B2 through B8 are done: the API serves active challenges, join,
-room details, and photo submission, and is deployed. The real next steps:
+Milestones B2 through B9 are done: the deployed API serves active challenges,
+join, room details, photo submission, anonymous voting, results, and the
+derived profile. Flutter uses API repositories for the complete core loop.
 
-1. Polish Flutter app integration with the existing API endpoints (replace
-   remaining mock data sources with API repositories).
-2. Milestone B7: OAuth foundation (one provider working locally,
-   session/token issuing, authenticated `/api/v1/me`).
-3. Milestone B9: voting and results.
+The real next steps:
+
+1. Challenge-author creation and schedule management.
+2. Upgrade guest sessions with phone verification when provider access is
+   confirmed.
+3. Moderation, reporting, and production scoring calibration.

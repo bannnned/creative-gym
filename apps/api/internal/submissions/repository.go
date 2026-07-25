@@ -224,7 +224,7 @@ WHERE id = $1`, submissionID)
 	return objects, nil
 }
 
-func (r *Repository) GetMineMedia(ctx context.Context, submissionID string, userID string) (MediaObject, error) {
+func (r *Repository) GetVisibleMedia(ctx context.Context, submissionID string, userID string) (MediaObject, error) {
 	var media MediaObject
 	err := r.pool.QueryRow(ctx, `
 SELECT
@@ -234,9 +234,21 @@ SELECT
   m.content_type,
   m.byte_size
 FROM submissions s
+JOIN rooms r ON r.id = s.room_id
+JOIN challenges c ON c.id = r.challenge_id
 JOIN media_objects m ON m.submission_id = s.id
 WHERE s.id = $1
-  AND s.user_id = $2
+  AND (
+    s.user_id = $2
+    OR (
+      now() >= c.voting_starts_at
+      AND EXISTS (
+        SELECT 1
+        FROM room_members rm
+        WHERE rm.room_id = s.room_id AND rm.user_id = $2
+      )
+    )
+  )
   AND s.status = 'active'
   AND s.deleted_at IS NULL
   AND m.status = 'uploaded'
@@ -254,7 +266,7 @@ LIMIT 1`, submissionID, userID).Scan(
 			return MediaObject{}, ErrMediaNotFound
 		}
 
-		return MediaObject{}, fmt.Errorf("query own submission media: %w", err)
+		return MediaObject{}, fmt.Errorf("query visible submission media: %w", err)
 	}
 
 	return media, nil

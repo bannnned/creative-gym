@@ -2,7 +2,7 @@
 
 Go REST API for the Creative Gym MVP.
 
-Current milestone: PostgreSQL-backed active challenges API.
+Current milestone: complete API-backed challenge loop for Flutter.
 
 ## Local PostgreSQL
 
@@ -68,9 +68,21 @@ POST /api/v1/challenges/{challengeId}/join
 GET /api/v1/rooms/{roomId}
 GET /api/v1/rooms/{roomId}/submissions/me
 POST /api/v1/rooms/{roomId}/submissions
+GET /api/v1/rooms/{roomId}/votes/next-pair
+POST /api/v1/rooms/{roomId}/votes
+GET /api/v1/rooms/{roomId}/results
+GET /api/v1/profile/me
 DELETE /api/v1/submissions/{submissionId}
 GET /api/v1/submissions/{submissionId}/media
 ```
+
+Voting returns anonymous pairs, excludes the viewer's own work, prevents a
+repeated vote for the same canonical pair, and caps the MVP session at ten
+choices. Results become available after `voting_ends_at` and rank works by win
+rate, then comparison count and stable creation order.
+
+Profile points are derived from completed room results: 100/60/30 points for
+places 1/2/3 and 10 points for another completed submission.
 
 API-backed clients create an opaque guest session and authenticate with
 `Authorization: Bearer <token>`. Only the token hash is stored in PostgreSQL.

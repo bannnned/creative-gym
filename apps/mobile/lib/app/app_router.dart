@@ -4,6 +4,7 @@ import 'package:creative_gym_mobile/features/challenges/presentation/challenge_s
 import 'package:creative_gym_mobile/features/results/presentation/results_screen.dart';
 import 'package:creative_gym_mobile/features/profile/presentation/profile_photo_viewer_screen.dart';
 import 'package:creative_gym_mobile/features/profile/presentation/profile_screen.dart';
+import 'package:creative_gym_mobile/features/profile/domain/profile_data.dart';
 import 'package:creative_gym_mobile/features/submissions/presentation/upload_submission_screen.dart';
 import 'package:creative_gym_mobile/features/voting/presentation/voting_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -76,6 +77,9 @@ GoRouter createAppRouter() {
           return ProfilePhotoViewerScreen(
             initialIndex: index,
             winnersOnly: winnersOnly,
+            works: state.extra is List<ProfileWork>
+                ? state.extra! as List<ProfileWork>
+                : null,
           );
         },
       ),

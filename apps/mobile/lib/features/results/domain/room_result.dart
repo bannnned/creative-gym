@@ -14,7 +14,7 @@ class RoomResult {
   final int submissionsCount;
   final String completionLabel;
   final String encouragementLabel;
-  final ResultSubmission currentUserSubmission;
+  final ResultSubmission? currentUserSubmission;
   final List<ResultSubmission> rankedSubmissions;
 }
 
@@ -28,6 +28,7 @@ class ResultSubmission {
     required this.comparisons,
     required this.paletteStart,
     required this.paletteEnd,
+    this.mediaUrl = '',
     this.isCurrentUser = false,
   });
 
@@ -39,6 +40,7 @@ class ResultSubmission {
   final int comparisons;
   final int paletteStart;
   final int paletteEnd;
+  final String mediaUrl;
   final bool isCurrentUser;
 
   String get scoreLabel => '$wins из $comparisons сравнений';

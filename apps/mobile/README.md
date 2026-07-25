@@ -22,17 +22,20 @@ Current state:
   memory. Authors can preview the `16:10` crop and replace their own cover.
 - Liquid Glass is isolated behind app-owned scaffold and button adapters and
   is used for navigation and actions, not photo content.
-- The profile route includes points, prize-place crowns, a winners-only work
-  filter, a three-column gallery, and a full-screen swipe viewer. Profile data
-  is currently local mock data until scoring/profile API rules are defined.
+- The profile route includes real derived points, prize-place crowns, a
+  winners-only work filter, an authenticated three-column gallery, and a
+  full-screen swipe viewer in API mode.
 - The sign-in screen uses a lightweight animated frame deck and respects
   Reduce Motion.
-- Comparison records a choice by tapping one of two photos.
-- Outcome leads with the user's own work and keeps the wider result collapsed.
+- Comparison loads anonymous S3-backed pairs, records a real vote by tapping
+  one of two photos, and avoids the viewer's own work.
+- Outcome loads the real room ranking after voting ends, leads with the user's
+  own work, and keeps the wider result collapsed.
 - Raw API and network exception details are converted into human messages.
 - Phone verification will upgrade the current guest instead of replacing the
   account; provider access for a physical person is being confirmed.
-- Phone identity and real voting/results rules are not connected yet.
+- Phone identity is not connected yet; guest progress is ready to be upgraded
+  in place later.
 
 The active interface rules are documented in
 `../../docs/14-simple-ux-plan.md`.

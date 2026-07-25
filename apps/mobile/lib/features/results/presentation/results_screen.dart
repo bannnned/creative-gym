@@ -2,11 +2,11 @@ import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
-import 'package:creative_gym_mobile/features/results/data/mock_room_results.dart';
 import 'package:creative_gym_mobile/features/results/domain/room_result.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
+import 'package:creative_gym_mobile/shared/widgets/authenticated_media.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -22,25 +22,33 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen> {
-  late Future<GymRoom?> _roomFuture;
+  late Future<void> _loadFuture;
+  GymRoom? _room;
+  RoomResult? _result;
   bool _showAll = false;
 
   @override
   void initState() {
     super.initState();
-    _roomFuture = appDependencies.rooms.getRoomById(widget.roomId);
+    _loadFuture = _load();
+  }
+
+  Future<void> _load() async {
+    final room = await appDependencies.rooms.getRoomById(widget.roomId);
+    RoomResult? result;
+    if (room != null && (widget.demoMode || room.canViewResults)) {
+      result = await appDependencies.results.getRoomResult(widget.roomId);
+    }
+    _room = room;
+    _result = result;
   }
 
   void _reload() {
-    setState(() {
-      _roomFuture = appDependencies.rooms.getRoomById(widget.roomId);
-    });
+    setState(() => _loadFuture = _load());
   }
 
   @override
   Widget build(BuildContext context) {
-    final result = findMockRoomResultByRoomId(widget.roomId);
-
     return AppScaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -50,8 +58,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
         ),
         title: const Text('Итог'),
       ),
-      body: FutureBuilder<GymRoom?>(
-        future: _roomFuture,
+      body: FutureBuilder<void>(
+        future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const AsyncLoadingPanel();
@@ -63,8 +71,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
             );
           }
 
-          final room = snapshot.data;
-          if (room == null || result == null) {
+          final room = _room;
+          if (room == null) {
             return const _ResultsState(
               title: 'Итог не найден',
               message: 'Вернитесь к текущему заданию.',
@@ -74,6 +82,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
             return _ResultsState(
               title: 'Итог пока недоступен',
               message: room.deadlineLabel,
+            );
+          }
+          final result = _result;
+          if (result == null) {
+            return const _ResultsState(
+              title: 'Работ пока нет',
+              message: 'В этой комнате ещё нечего показывать.',
             );
           }
 
@@ -130,23 +145,32 @@ class _ResultsContent extends StatelessWidget {
           ).textTheme.titleMedium?.copyWith(color: AppTheme.mutedInk),
         ),
         const SizedBox(height: 28),
-        Text(
-          'Ваш кадр',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 12),
-        _ResultPreview(submission: own, aspectRatio: 4 / 5),
-        const SizedBox(height: 14),
-        Text(
-          own.scoreLabel,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: AppTheme.primaryDark,
-            fontWeight: FontWeight.w700,
+        if (own != null) ...[
+          Text(
+            'Ваш кадр',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
-        ),
+          const SizedBox(height: 12),
+          _ResultPreview(submission: own, aspectRatio: 4 / 5),
+          const SizedBox(height: 14),
+          Text(
+            '${own.rank} место · ${own.scoreLabel}',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: AppTheme.primaryDark,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ] else
+          Text(
+            'Вы смотрите итоги без своей работы.',
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.mutedInk),
+          ),
         const SizedBox(height: 8),
         Text(
           result.encouragementLabel,
@@ -192,12 +216,21 @@ class _ResultRow extends StatelessWidget {
           child: _ResultPreview(submission: submission, aspectRatio: 1),
         ),
         const SizedBox(width: 12),
+        SizedBox(
+          width: 28,
+          child: Text(
+            '${submission.rank}',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+        ),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                submission.isCurrentUser ? 'Ваш кадр' : submission.title,
+                submission.isCurrentUser ? 'Ваш кадр' : submission.authorLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(
@@ -227,19 +260,25 @@ class _ResultPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fallback = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(submission.paletteStart),
+            Color(submission.paletteEnd),
+          ],
+        ),
+      ),
+    );
     return AspectRatio(
       aspectRatio: aspectRatio,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppTheme.radiusL),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(submission.paletteStart),
-              Color(submission.paletteEnd),
-            ],
-          ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppTheme.radiusL),
+        child: AuthenticatedMedia(
+          mediaUrl: submission.mediaUrl,
+          fallback: fallback,
         ),
       ),
     );

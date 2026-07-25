@@ -13,9 +13,11 @@ import (
 	"creative-gym/apps/api/internal/challenges"
 	"creative-gym/apps/api/internal/config"
 	"creative-gym/apps/api/internal/db"
+	"creative-gym/apps/api/internal/results"
 	"creative-gym/apps/api/internal/rooms"
 	"creative-gym/apps/api/internal/storage"
 	"creative-gym/apps/api/internal/submissions"
+	"creative-gym/apps/api/internal/voting"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -84,6 +86,16 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 		writeJSON,
 		writeAPIError,
 	)
+	votingHandler := voting.NewHandler(
+		voting.NewRepository(dbPool),
+		writeJSON,
+		writeAPIError,
+	)
+	resultsHandler := results.NewHandler(
+		results.NewRepository(dbPool),
+		writeJSON,
+		writeAPIError,
+	)
 	challengeHandler.WithObjectStore(challengeObjectStore)
 
 	mux.HandleFunc("GET /api/v1/challenges/active", challengeHandler.ListActive)
@@ -95,6 +107,10 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}", roomHandler.GetByID)
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}/submissions/me", submissionHandler.GetMine)
 	mux.HandleFunc("POST /api/v1/rooms/{roomId}/submissions", submissionHandler.UploadMine)
+	mux.HandleFunc("GET /api/v1/rooms/{roomId}/votes/next-pair", votingHandler.NextPair)
+	mux.HandleFunc("POST /api/v1/rooms/{roomId}/votes", votingHandler.CastVote)
+	mux.HandleFunc("GET /api/v1/rooms/{roomId}/results", resultsHandler.GetRoomResult)
+	mux.HandleFunc("GET /api/v1/profile/me", resultsHandler.GetProfile)
 	mux.HandleFunc("DELETE /api/v1/submissions/{submissionId}", submissionHandler.DeleteMine)
 	mux.HandleFunc("GET /api/v1/submissions/{submissionId}/media", submissionHandler.GetMedia)
 

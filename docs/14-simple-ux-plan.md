@@ -149,9 +149,9 @@ It contains:
 - a small place-coloured crown in the bottom-right corner of prize works;
 - a full-screen, swipeable viewer with only a back action.
 
-Until the profile API and real result scoring are defined, this screen uses
-`mockProfileData`. Its presentation and routes are production-shaped; only the
-data source needs replacing.
+In API mode this screen uses the real profile endpoint and authenticated S3
+media. Mock mode keeps `mockProfileData` for deterministic demos and widget
+tests.
 
 ### Submission
 

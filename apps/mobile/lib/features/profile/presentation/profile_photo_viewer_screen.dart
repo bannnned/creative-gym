@@ -10,10 +10,12 @@ class ProfilePhotoViewerScreen extends StatefulWidget {
     super.key,
     required this.initialIndex,
     required this.winnersOnly,
+    this.works,
   });
 
   final int initialIndex;
   final bool winnersOnly;
+  final List<ProfileWork>? works;
 
   @override
   State<ProfilePhotoViewerScreen> createState() =>
@@ -27,12 +29,16 @@ class _ProfilePhotoViewerScreenState extends State<ProfilePhotoViewerScreen> {
   @override
   void initState() {
     super.initState();
-    _works = widget.winnersOnly
-        ? mockProfileData.works
-              .where((work) => work.isWinner)
-              .toList(growable: false)
-        : mockProfileData.works;
-    final safeIndex = widget.initialIndex.clamp(0, _works.length - 1);
+    _works =
+        widget.works ??
+        (widget.winnersOnly
+            ? mockProfileData.works
+                  .where((work) => work.isWinner)
+                  .toList(growable: false)
+            : mockProfileData.works);
+    final safeIndex = _works.isEmpty
+        ? 0
+        : widget.initialIndex.clamp(0, _works.length - 1);
     _controller = PageController(initialPage: safeIndex);
   }
 

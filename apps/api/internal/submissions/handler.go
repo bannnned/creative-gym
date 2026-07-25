@@ -20,7 +20,7 @@ type Store interface {
 	GetMine(ctx context.Context, roomID string, userID string) (*Submission, error)
 	UpsertMine(ctx context.Context, roomID string, userID string, media MediaObject) (Submission, []ObjectRef, error)
 	DeleteMine(ctx context.Context, submissionID string, userID string) ([]ObjectRef, error)
-	GetMineMedia(ctx context.Context, submissionID string, userID string) (MediaObject, error)
+	GetVisibleMedia(ctx context.Context, submissionID string, userID string) (MediaObject, error)
 }
 
 type ObjectStore interface {
@@ -209,7 +209,7 @@ func (h *Handler) GetMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	media, err := h.store.GetMineMedia(r.Context(), submissionID, userID)
+	media, err := h.store.GetVisibleMedia(r.Context(), submissionID, userID)
 	if err != nil {
 		if errors.Is(err, ErrMediaNotFound) {
 			h.writeAPIError(w, http.StatusNotFound, "media_not_found", "Media not found.")

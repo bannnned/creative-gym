@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:creative_gym_mobile/features/profile/domain/profile_data.dart';
+import 'package:creative_gym_mobile/shared/widgets/authenticated_media.dart';
 import 'package:flutter/material.dart';
 
 class ProfileWorkArtwork extends StatelessWidget {
@@ -10,13 +11,18 @@ class ProfileWorkArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
+    final fallback = LayoutBuilder(
       builder: (context, constraints) {
         return CustomPaint(
           painter: _ArtworkPainter(work),
           size: Size(constraints.maxWidth, constraints.maxHeight),
         );
       },
+    );
+    return AuthenticatedMedia(
+      mediaUrl: work.mediaUrl,
+      fallback: fallback,
+      fit: BoxFit.cover,
     );
   }
 }

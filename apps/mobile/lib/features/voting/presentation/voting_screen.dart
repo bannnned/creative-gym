@@ -3,10 +3,10 @@ import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
-import 'package:creative_gym_mobile/features/voting/data/mock_vote_pairs.dart';
 import 'package:creative_gym_mobile/features/voting/domain/vote_pair.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
+import 'package:creative_gym_mobile/shared/widgets/authenticated_media.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -22,24 +22,31 @@ class VotingScreen extends StatefulWidget {
 }
 
 class _VotingScreenState extends State<VotingScreen> {
-  late Future<GymRoom?> _roomFuture;
-  int _currentIndex = 0;
+  late Future<void> _loadFuture;
+  GymRoom? _room;
+  VotePair? _pair;
   int _votesCount = 0;
   String? _selectedSide;
-  bool _isAdvancing = false;
-
-  bool get _isComplete => _currentIndex >= mockVotePairs.length;
+  bool _isBusy = false;
 
   @override
   void initState() {
     super.initState();
-    _roomFuture = appDependencies.rooms.getRoomById(widget.roomId);
+    _loadFuture = _load();
+  }
+
+  Future<void> _load() async {
+    final room = await appDependencies.rooms.getRoomById(widget.roomId);
+    VotePair? pair;
+    if (room != null && (widget.demoMode || room.canVote)) {
+      pair = await appDependencies.voting.getNextPair(widget.roomId);
+    }
+    _room = room;
+    _pair = pair;
   }
 
   void _reload() {
-    setState(() {
-      _roomFuture = appDependencies.rooms.getRoomById(widget.roomId);
-    });
+    setState(() => _loadFuture = _load());
   }
 
   @override
@@ -53,8 +60,8 @@ class _VotingScreenState extends State<VotingScreen> {
         ),
         title: const Text('Сравнение'),
       ),
-      body: FutureBuilder<GymRoom?>(
-        future: _roomFuture,
+      body: FutureBuilder<void>(
+        future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const AsyncLoadingPanel();
@@ -66,7 +73,7 @@ class _VotingScreenState extends State<VotingScreen> {
             );
           }
 
-          final room = snapshot.data;
+          final room = _room;
           if (room == null) {
             return const _VotingState(
               title: 'Задание не найдено',
@@ -79,13 +86,8 @@ class _VotingScreenState extends State<VotingScreen> {
               message: room.deadlineLabel,
             );
           }
-          if (mockVotePairs.isEmpty) {
-            return const _VotingState(
-              title: 'Пока нечего сравнивать',
-              message: 'В группе ещё недостаточно фотографий.',
-            );
-          }
-          if (_isComplete) {
+          final pair = _pair;
+          if (pair == null) {
             return _VotingComplete(
               roomId: room.id,
               votesCount: _votesCount,
@@ -94,13 +96,13 @@ class _VotingScreenState extends State<VotingScreen> {
           }
 
           return _VotingContent(
-            pair: mockVotePairs[_currentIndex],
-            current: _currentIndex + 1,
-            total: mockVotePairs.length,
+            pair: pair,
+            current: pair.completed + 1,
+            total: pair.target,
             selectedSide: _selectedSide,
-            isLocked: _isAdvancing,
-            onVoteLeft: () => _vote('left'),
-            onVoteRight: () => _vote('right'),
+            isLocked: _isBusy,
+            onVoteLeft: () => _vote('left', pair.leftSubmissionId),
+            onVoteRight: () => _vote('right', pair.rightSubmissionId),
             onSkip: _skip,
           );
         },
@@ -108,34 +110,72 @@ class _VotingScreenState extends State<VotingScreen> {
     );
   }
 
-  Future<void> _vote(String side) async {
-    if (_isAdvancing) {
+  Future<void> _vote(String side, String chosenSubmissionId) async {
+    final pair = _pair;
+    if (_isBusy || pair == null) {
       return;
     }
     setState(() {
       _selectedSide = side;
-      _isAdvancing = true;
+      _isBusy = true;
     });
-    await Future<void>.delayed(const Duration(milliseconds: 260));
-    if (!mounted) {
-      return;
+    try {
+      await appDependencies.voting.castVote(
+        widget.roomId,
+        pair,
+        chosenSubmissionId,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 220));
+      final nextPair = await appDependencies.voting.getNextPair(widget.roomId);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _votesCount++;
+        _pair = nextPair;
+        _selectedSide = null;
+        _isBusy = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _selectedSide = null;
+        _isBusy = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
     }
-    setState(() {
-      _votesCount += 1;
-      _currentIndex += 1;
-      _selectedSide = null;
-      _isAdvancing = false;
-    });
   }
 
-  void _skip() {
-    if (_isAdvancing) {
+  Future<void> _skip() async {
+    final pair = _pair;
+    if (_isBusy || pair == null) {
       return;
     }
-    setState(() {
-      _currentIndex += 1;
-      _selectedSide = null;
-    });
+    setState(() => _isBusy = true);
+    try {
+      await appDependencies.voting.skip(widget.roomId, pair);
+      final nextPair = await appDependencies.voting.getNextPair(widget.roomId);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _pair = nextPair;
+        _selectedSide = null;
+        _isBusy = false;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isBusy = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
+    }
   }
 }
 
@@ -191,6 +231,7 @@ class _VotingContent extends StatelessWidget {
                 Expanded(
                   child: _PhotoChoice(
                     semanticsLabel: pair.leftLabel,
+                    mediaUrl: pair.leftMediaUrl,
                     palette: pair.leftPalette,
                     selected: selectedSide == 'left',
                     dimmed: selectedSide == 'right',
@@ -201,6 +242,7 @@ class _VotingContent extends StatelessWidget {
                 Expanded(
                   child: _PhotoChoice(
                     semanticsLabel: pair.rightLabel,
+                    mediaUrl: pair.rightMediaUrl,
                     palette: pair.rightPalette,
                     selected: selectedSide == 'right',
                     dimmed: selectedSide == 'left',
@@ -234,6 +276,7 @@ class _VotingContent extends StatelessWidget {
 class _PhotoChoice extends StatelessWidget {
   const _PhotoChoice({
     required this.semanticsLabel,
+    required this.mediaUrl,
     required this.palette,
     required this.selected,
     required this.dimmed,
@@ -241,6 +284,7 @@ class _PhotoChoice extends StatelessWidget {
   });
 
   final String semanticsLabel;
+  final String mediaUrl;
   final VotePhotoPalette palette;
   final bool selected;
   final bool dimmed;
@@ -248,6 +292,19 @@ class _PhotoChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fallback = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(palette.start),
+            Color(palette.middle),
+            Color(palette.end),
+          ],
+        ),
+      ),
+    );
     return Semantics(
       button: true,
       label: semanticsLabel,
@@ -261,37 +318,36 @@ class _PhotoChoice extends StatelessWidget {
           child: InkWell(
             key: ValueKey('vote-$semanticsLabel'),
             onTap: onTap,
-            child: Ink(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppTheme.radiusL),
-                border: Border.all(
-                  color: selected ? AppTheme.primaryDark : Colors.transparent,
-                  width: 4,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                AuthenticatedMedia(mediaUrl: mediaUrl, fallback: fallback),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusL),
+                    border: Border.all(
+                      color: selected
+                          ? AppTheme.primaryDark
+                          : Colors.transparent,
+                      width: 4,
+                    ),
+                  ),
                 ),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(palette.start),
-                    Color(palette.middle),
-                    Color(palette.end),
-                  ],
-                ),
-              ),
-              child: selected
-                  ? const Center(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(Icons.check, color: AppTheme.primaryDark),
-                        ),
+                if (selected)
+                  const Center(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
                       ),
-                    )
-                  : null,
+                      child: Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(Icons.check, color: AppTheme.primaryDark),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -333,7 +389,9 @@ class _VotingComplete extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Вы сделали $votesCount выбора.',
+              votesCount == 0
+                  ? 'Новых пар пока нет.'
+                  : 'Вы сделали $votesCount выборов.',
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: AppTheme.mutedInk),
