@@ -136,7 +136,8 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'Один челлендж. Один кадр. Каждую неделю.',
+                  'Выбери челлендж → сними один кадр → проголосуй → '
+                  'узнай результат.',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: AppTheme.mutedInk,
                     fontWeight: FontWeight.w400,
@@ -160,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen>
                     key: const ValueKey('continue-button'),
                     label: _checkingSession || _signingIn
                         ? 'Подождите…'
-                        : 'Продолжить',
+                        : 'Начать',
                     onPressed: _continue,
                   ),
                 ),

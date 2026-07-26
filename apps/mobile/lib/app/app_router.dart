@@ -1,6 +1,8 @@
 import 'package:animations/animations.dart';
 import 'package:creative_gym_mobile/features/auth/presentation/login_screen.dart';
 import 'package:creative_gym_mobile/features/admin/presentation/admin_challenges_screen.dart';
+import 'package:creative_gym_mobile/features/admin/presentation/admin_home_screen.dart';
+import 'package:creative_gym_mobile/features/admin/presentation/admin_test_accounts_screen.dart';
 import 'package:creative_gym_mobile/features/challenges/presentation/weekly_workouts_screen.dart';
 import 'package:creative_gym_mobile/features/challenges/presentation/challenge_selection_screen.dart';
 import 'package:creative_gym_mobile/features/results/presentation/results_screen.dart';
@@ -18,7 +20,9 @@ abstract final class AppRoutes {
   static const challengeDetailsPath = '/challenges/:challengeId';
   static const profile = '/profile';
   static const publicProfilePath = '/profiles/:userId';
+  static const admin = '/profile/admin';
   static const adminChallenges = '/profile/admin/challenges';
+  static const adminTestAccounts = '/profile/admin/test-accounts';
   static const profileWorksPath = '/profile/works';
   static const roomPath = '/rooms/:roomId';
   static const roomUploadPath = '/rooms/:roomId/upload';
@@ -89,9 +93,19 @@ GoRouter createAppRouter() {
         ),
       ),
       GoRoute(
+        path: AppRoutes.admin,
+        pageBuilder: (context, state) =>
+            _appPage(state, const AdminHomeScreen()),
+      ),
+      GoRoute(
         path: AppRoutes.adminChallenges,
         pageBuilder: (context, state) =>
             _appPage(state, const AdminChallengesScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.adminTestAccounts,
+        pageBuilder: (context, state) =>
+            _appPage(state, const AdminTestAccountsScreen()),
       ),
       GoRoute(
         path: AppRoutes.profileWorksPath,

@@ -32,10 +32,12 @@ void main() {
     expect(find.text('Creative Gym'), findsOneWidget);
     expect(find.text('Тренируй\nвзгляд.'), findsOneWidget);
     expect(
-      find.text('Один челлендж. Один кадр. Каждую неделю.'),
+      find.text(
+        'Выбери челлендж → сними один кадр → проголосуй → узнай результат.',
+      ),
       findsOneWidget,
     );
-    expect(find.text('Продолжить'), findsOneWidget);
+    expect(find.text('Начать'), findsOneWidget);
     expect(find.textContaining('Google'), findsNothing);
     expect(find.textContaining('Yandex'), findsNothing);
   });
@@ -146,25 +148,24 @@ void main() {
     expect(find.text('Режим автора'), findsNothing);
   });
 
-  testWidgets('debug account switcher blocks creation for non-admins', (
+  testWidgets('non-admin profile only offers the secret code entry', (
     tester,
   ) async {
     await openChallenges(tester);
     await tester.tap(find.byKey(const ValueKey('profile-button')));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(const ValueKey('test-account-switcher-button')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Тестовые аккаунты'), findsOneWidget);
-    expect(find.text('1/8'), findsOneWidget);
-    expect(find.textContaining('только администратор'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('create-test-account-button')),
+      find.byKey(const ValueKey('test-account-switcher-button')),
       findsNothing,
     );
+    expect(find.byKey(const ValueKey('admin-menu-button')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('admin-menu-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Режим автора'), findsOneWidget);
+    expect(find.byKey(const ValueKey('admin-code-field')), findsOneWidget);
   });
 
   testWidgets('rules stay behind a secondary action', (tester) async {

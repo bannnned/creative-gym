@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:creative_gym_mobile/app/app_router.dart';
@@ -11,8 +12,10 @@ import 'package:creative_gym_mobile/shared/widgets/app_glass_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
+import 'package:creative_gym_mobile/shared/widgets/onboarding_coach_mark.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 
 class WeeklyWorkoutsScreen extends StatefulWidget {
   const WeeklyWorkoutsScreen({super.key, required this.challengeId});
@@ -27,6 +30,10 @@ class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
   late Future<_HomeData> _homeFuture;
   bool _isJoining = false;
   bool _isUploadingCover = false;
+  final _statusTargetKey = GlobalKey();
+  final _primaryActionTargetKey = GlobalKey();
+  bool _onboardingScheduled = false;
+  bool _onboardingTargetsActive = true;
 
   @override
   void initState() {
@@ -111,6 +118,7 @@ class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
             );
           }
 
+          _scheduleOnboarding(data);
           return AsyncContentTransition(
             stateKey: 'content',
             child: _HomeContent(
@@ -122,11 +130,98 @@ class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
                   ? () => _changeCover(data.workout!)
                   : null,
               isUploadingCover: _isUploadingCover,
+              statusTargetKey: _onboardingTargetsActive
+                  ? _statusTargetKey
+                  : null,
+              primaryActionTargetKey: _onboardingTargetsActive
+                  ? _primaryActionTargetKey
+                  : null,
             ),
           );
         },
       ),
     );
+  }
+
+  void _scheduleOnboarding(_HomeData data) {
+    if (_onboardingScheduled) {
+      return;
+    }
+    _onboardingScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_showOnboarding(data));
+    });
+  }
+
+  Future<void> _showOnboarding(_HomeData data) async {
+    if (!await appDependencies.onboarding.shouldShowDetails()) {
+      _deactivateOnboardingTargets();
+      return;
+    }
+    if (!mounted || _statusTargetKey.currentContext == null) {
+      return;
+    }
+
+    final steps = <OnboardingCoachStep>[
+      OnboardingCoachStep(
+        id: 'challenge-timeline',
+        targetKey: _statusTargetKey,
+        title: 'Следи за этапом',
+        body:
+            'Здесь видно, когда закончится приём работ, начнётся голосование '
+            'и появятся результаты.',
+        align: ContentAlign.top,
+      ),
+      if (_canUploadPhoto(data) &&
+          _primaryActionTargetKey.currentContext != null)
+        OnboardingCoachStep(
+          id: 'challenge-upload',
+          targetKey: _primaryActionTargetKey,
+          title: 'Добавь свой кадр',
+          body: 'Нажми сюда, чтобы загрузить одну фотографию.',
+          align: ContentAlign.top,
+        ),
+    ];
+
+    final tutorial = createOnboardingCoachMark(
+      context: context,
+      steps: steps,
+      onFinish: () => unawaited(_completeOnboarding()),
+      onSkip: () => unawaited(_skipOnboarding()),
+    );
+    tutorial.show(context: context, rootOverlay: true);
+  }
+
+  Future<void> _completeOnboarding() async {
+    await appDependencies.onboarding.completeDetails();
+    _deactivateOnboardingTargets();
+  }
+
+  Future<void> _skipOnboarding() async {
+    await appDependencies.onboarding.skip();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _deactivateOnboardingTargets();
+    });
+  }
+
+  void _deactivateOnboardingTargets() {
+    if (!mounted || !_onboardingTargetsActive) {
+      return;
+    }
+    setState(() => _onboardingTargetsActive = false);
+  }
+
+  bool _canUploadPhoto(_HomeData data) {
+    final room = data.room;
+    if (room != null) {
+      return room.phase == GymRoomPhase.submission && !room.hasSubmission;
+    }
+
+    final phase = data.workout!.phase.toLowerCase();
+    return !phase.contains('скоро') &&
+        !phase.contains('голос') &&
+        !phase.contains('результат') &&
+        !phase.contains('заверш');
   }
 
   Future<void> _handlePrimaryAction(_HomeData data) async {
@@ -319,6 +414,8 @@ class _HomeContent extends StatelessWidget {
     required this.onShowRules,
     required this.onChangeCover,
     required this.isUploadingCover,
+    required this.statusTargetKey,
+    required this.primaryActionTargetKey,
   });
 
   final _HomeData data;
@@ -327,6 +424,8 @@ class _HomeContent extends StatelessWidget {
   final VoidCallback onShowRules;
   final VoidCallback? onChangeCover;
   final bool isUploadingCover;
+  final GlobalKey? statusTargetKey;
+  final GlobalKey? primaryActionTargetKey;
 
   @override
   Widget build(BuildContext context) {
@@ -400,6 +499,7 @@ class _HomeContent extends StatelessWidget {
           const SizedBox(height: 18),
         ],
         GlassPanel(
+          key: statusTargetKey,
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -427,10 +527,13 @@ class _HomeContent extends StatelessWidget {
                   child: AnimatedOpacity(
                     duration: const Duration(milliseconds: 140),
                     opacity: action.isEnabled ? 1 : 0.45,
-                    child: GlassButton(
-                      key: const ValueKey('primary-workout-action'),
-                      label: isJoining ? 'Подождите...' : action.buttonLabel!,
-                      onPressed: onPrimaryAction,
+                    child: KeyedSubtree(
+                      key: primaryActionTargetKey,
+                      child: GlassButton(
+                        key: const ValueKey('primary-workout-action'),
+                        label: isJoining ? 'Подождите...' : action.buttonLabel!,
+                        onPressed: onPrimaryAction,
+                      ),
                     ),
                   ),
                 ),

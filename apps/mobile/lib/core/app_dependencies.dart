@@ -12,6 +12,7 @@ import 'package:creative_gym_mobile/features/challenges/domain/challenges_reposi
 import 'package:creative_gym_mobile/features/media/data/api_media_repository.dart';
 import 'package:creative_gym_mobile/features/media/data/mock_media_repository.dart';
 import 'package:creative_gym_mobile/features/media/domain/media_repository.dart';
+import 'package:creative_gym_mobile/features/onboarding/data/onboarding_repository.dart';
 import 'package:creative_gym_mobile/features/profile/data/api_profile_repository.dart';
 import 'package:creative_gym_mobile/features/profile/data/mock_profile_repository.dart';
 import 'package:creative_gym_mobile/features/profile/domain/profile_repository.dart';
@@ -51,6 +52,7 @@ class AppDependencies {
     required this.results,
     required this.profile,
     required this.media,
+    required this.onboarding,
   });
 
   final AppConfig config;
@@ -64,6 +66,7 @@ class AppDependencies {
   final ResultsRepository results;
   final ProfileRepository profile;
   final MediaRepository media;
+  final OnboardingRepository onboarding;
 
   factory AppDependencies.create({AppConfig? config}) {
     final resolvedConfig = config ?? AppConfig.fromEnvironment();
@@ -74,6 +77,12 @@ class AppDependencies {
     };
     final apiClient = ApiClient(resolvedConfig, sessionStore);
     final apiMedia = ApiMediaRepository(apiClient);
+    final onboarding = OnboardingRepository(
+      resolvedConfig.mode == DataSourceMode.mock
+          ? MemoryOnboardingStateStore()
+          : SecureOnboardingStateStore(),
+      enabledByDefault: resolvedConfig.mode != DataSourceMode.mock,
+    );
     final auth = AuthRepository(
       apiClient,
       sessionStore,
@@ -157,6 +166,7 @@ class AppDependencies {
       results: results,
       profile: profile,
       media: media,
+      onboarding: onboarding,
     );
   }
 }
