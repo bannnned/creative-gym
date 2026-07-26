@@ -103,6 +103,34 @@ Code and API identifiers remain English.
 Flutter feature screens depend on app-owned glass adapters, not directly on a
 third-party rendering package.
 
+### Calm motion language
+
+Motion should explain state changes and preserve spatial continuity. It must
+not compete with the photographs.
+
+Current implementation direction:
+
+- shared-axis transitions connect primary application screens;
+- challenge cards enter with a short, restrained stagger;
+- selected and accepted photographs use a brief photographic reveal;
+- comparison selection responds with a small check and scale motion;
+- workout completion assembles in a short sequence;
+- motion durations and delays become zero when the system requests reduced
+  motion.
+
+Use `flutter_animate` for focused widget effects and the official `animations`
+package for navigation transitions. Prefer Flutter's built-in animated widgets
+for simple state changes.
+
+Avoid:
+
+- looping decorative motion on primary screens;
+- confetti and casino-like celebration;
+- large parallax or gyroscope effects;
+- animating every text or control;
+- stacking blur, glass, and shader effects on the same surface;
+- making task completion wait for an animation.
+
 ## Challenge Covers
 
 - Covers are private S3 objects served through the backend.
@@ -152,6 +180,19 @@ It contains:
 In API mode this screen uses the real profile endpoint and authenticated S3
 media. Mock mode keeps `mockProfileData` for deterministic demos and widget
 tests.
+
+#### Avatar
+
+- The current user can tap the avatar or camera badge to add or replace it.
+- The editor opens immediately after choosing a photo.
+- The preview is circular; the user can move and zoom the photo and rotate it
+  in either direction.
+- The saved file is a square `1024 x 1024` JPEG, while the interface displays
+  it through a circular mask.
+- Avatar files are limited to 3 MiB and stored as private S3 objects.
+- Replacing an avatar creates a versioned object URL, updates the profile, and
+  removes the previous private object.
+- Other users can see the avatar but cannot edit it.
 
 ### Submission
 

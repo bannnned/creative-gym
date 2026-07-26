@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
+import 'package:creative_gym_mobile/shared/widgets/soft_memory_image.dart';
 import 'package:flutter/material.dart';
 
 class AuthenticatedMedia extends StatefulWidget {
@@ -53,24 +54,15 @@ class _AuthenticatedMediaState extends State<AuthenticatedMedia> {
       builder: (context, snapshot) {
         final bytes = snapshot.data;
         final loaded = bytes != null && bytes.isNotEmpty;
-        return AnimatedSwitcher(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 240),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          child: loaded
-              ? Image.memory(
-                  bytes,
-                  key: ValueKey('media-${widget.mediaUrl}'),
-                  fit: widget.fit,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, _, _) => widget.fallback,
-                )
-              : KeyedSubtree(
-                  key: ValueKey('media-placeholder-${widget.mediaUrl}'),
-                  child: widget.fallback,
-                ),
+        if (!loaded) {
+          return widget.fallback;
+        }
+        return SoftMemoryImage(
+          key: ValueKey('media-${widget.mediaUrl}'),
+          bytes: bytes,
+          placeholder: widget.fallback,
+          revealKey: widget.mediaUrl,
+          fit: widget.fit,
         );
       },
     );

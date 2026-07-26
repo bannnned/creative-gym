@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -146,15 +148,26 @@ func (r *Repository) getProfile(
 	var profile Profile
 	profile.UserID = userID
 	profile.IsCurrentUser = isCurrentUser
+	var avatarSource string
 	err := r.pool.QueryRow(ctx, `
-SELECT display_name
+SELECT display_name, COALESCE(avatar_url, '')
 FROM users
-WHERE id = $1`, userID).Scan(&profile.DisplayName)
+WHERE id = $1`, userID).Scan(&profile.DisplayName, &avatarSource)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Profile{}, ErrProfileNotFound
 		}
 		return Profile{}, fmt.Errorf("query profile identity: %w", err)
+	}
+	if strings.HasPrefix(avatarSource, avatarStoragePrefix) {
+		objectKey := strings.TrimPrefix(avatarSource, avatarStoragePrefix)
+		profile.AvatarURL = fmt.Sprintf(
+			"/api/v1/profiles/%s/avatar?v=%s",
+			userID,
+			path.Base(objectKey),
+		)
+	} else {
+		profile.AvatarURL = avatarSource
 	}
 
 	rows, err := r.pool.Query(ctx, `

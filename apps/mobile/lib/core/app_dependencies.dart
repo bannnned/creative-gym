@@ -14,7 +14,10 @@ import 'package:creative_gym_mobile/features/media/data/mock_media_repository.da
 import 'package:creative_gym_mobile/features/media/domain/media_repository.dart';
 import 'package:creative_gym_mobile/features/onboarding/data/onboarding_repository.dart';
 import 'package:creative_gym_mobile/features/profile/data/api_profile_repository.dart';
+import 'package:creative_gym_mobile/features/profile/data/image_cropper_avatar_editor.dart';
 import 'package:creative_gym_mobile/features/profile/data/mock_profile_repository.dart';
+import 'package:creative_gym_mobile/features/profile/data/passthrough_avatar_editor.dart';
+import 'package:creative_gym_mobile/features/profile/domain/avatar_editor.dart';
 import 'package:creative_gym_mobile/features/profile/domain/profile_repository.dart';
 import 'package:creative_gym_mobile/features/results/data/api_results_repository.dart';
 import 'package:creative_gym_mobile/features/results/data/mock_results_repository.dart';
@@ -48,6 +51,7 @@ class AppDependencies {
     required this.rooms,
     required this.submissions,
     required this.photoPicker,
+    required this.avatarEditor,
     required this.voting,
     required this.results,
     required this.profile,
@@ -62,6 +66,7 @@ class AppDependencies {
   final RoomsRepository rooms;
   final SubmissionsRepository submissions;
   final PhotoPicker photoPicker;
+  final AvatarEditor avatarEditor;
   final VotingRepository voting;
   final ResultsRepository results;
   final ProfileRepository profile;
@@ -136,6 +141,11 @@ class AppDependencies {
       DataSourceMode.api ||
       DataSourceMode.apiWithMockFallback => ImagePickerPhotoPicker(),
     };
+    final avatarEditor = switch (resolvedConfig.mode) {
+      DataSourceMode.mock => const PassthroughAvatarEditor(),
+      DataSourceMode.api ||
+      DataSourceMode.apiWithMockFallback => ImageCropperAvatarEditor(),
+    };
 
     final voting = switch (resolvedConfig.mode) {
       DataSourceMode.mock => mockVoting,
@@ -162,6 +172,7 @@ class AppDependencies {
       rooms: rooms,
       submissions: submissions,
       photoPicker: photoPicker,
+      avatarEditor: avatarEditor,
       voting: voting,
       results: results,
       profile: profile,

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Three Reps</title>
+  <desc id="desc">Three repeated frames visualizing consistent practice and visible progress.</desc>
+  <rect
+    x="66"
+    y="66"
+    width="238"
+    height="238"
+    rx="48"
+    fill="none"
+    stroke="#17211C"
+    stroke-width="30"
+  />
+  <rect
+    x="137"
+    y="137"
+    width="238"
+    height="238"
+    rx="48"
+    fill="#F8F6F0"
+    stroke="#526058"
+    stroke-width="30"
+  />
+  <rect
+    x="208"
+    y="208"
+    width="238"
+    height="238"
+    rx="48"
+    fill="#F8F6F0"
+    stroke="#2F6F5E"
+    stroke-width="30"
+  />
+  <rect x="374" y="374" width="56" height="56" rx="18" fill="#C66A4A"/>
+</svg>

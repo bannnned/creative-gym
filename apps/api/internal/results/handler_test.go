@@ -71,6 +71,7 @@ func TestGetPublicProfileReturnsPublicIdentity(t *testing.T) {
 			return Profile{
 				UserID:      userID,
 				DisplayName: "Участник",
+				AvatarURL:   "/api/v1/profiles/author-id/avatar?v=avatar.jpg",
 				Works:       []ProfileWork{{ID: "finished-work", Finished: true}},
 			}, nil
 		},
@@ -88,6 +89,7 @@ func TestGetPublicProfileReturnsPublicIdentity(t *testing.T) {
 	body := response.Body.String()
 	if !strings.Contains(body, `"id":"author-id"`) ||
 		!strings.Contains(body, `"display_name":"Участник"`) ||
+		!strings.Contains(body, `"avatar_url":"/api/v1/profiles/author-id/avatar?v=avatar.jpg"`) ||
 		!strings.Contains(body, `"is_current_user":false`) {
 		t.Fatalf("body = %q, want public identity", body)
 	}

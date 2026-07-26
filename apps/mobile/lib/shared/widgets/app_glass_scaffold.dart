@@ -1,4 +1,5 @@
 import 'package:creative_gym_mobile/app/app_theme.dart';
+import 'package:creative_gym_mobile/shared/widgets/app_back_scope.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_background.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -11,16 +12,18 @@ class AppGlassScaffold extends StatelessWidget {
     this.title,
     this.showBackButton = false,
     this.actions = const [],
+    this.backFallbackLocation,
   });
 
   final String? title;
   final Widget body;
   final bool showBackButton;
   final List<Widget> actions;
+  final String? backFallbackLocation;
 
   @override
   Widget build(BuildContext context) {
-    return liquid.GlassScaffold(
+    final scaffold = liquid.GlassScaffold(
       statusBarStyle: liquid.GlassStatusBarStyle.dark,
       background: const AppBackground(child: SizedBox.expand()),
       extendBody: false,
@@ -41,7 +44,14 @@ class AppGlassScaffold extends StatelessWidget {
                       Icons.arrow_back_rounded,
                       color: AppTheme.ink,
                     ),
-                    onPressed: () => context.pop(),
+                    onPressed: () {
+                      final fallbackLocation = backFallbackLocation;
+                      if (fallbackLocation == null) {
+                        context.pop();
+                        return;
+                      }
+                      popOrGoBack(context, fallbackLocation: fallbackLocation);
+                    },
                   ),
                 ),
               )
@@ -59,6 +69,12 @@ class AppGlassScaffold extends StatelessWidget {
       ),
       body: body,
     );
+    final fallbackLocation = backFallbackLocation;
+    if (fallbackLocation == null) {
+      return scaffold;
+    }
+
+    return AppBackScope(fallbackLocation: fallbackLocation, child: scaffold);
   }
 }
 

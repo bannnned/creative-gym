@@ -10,6 +10,7 @@ import 'package:creative_gym_mobile/features/challenges/domain/weekly_workout.da
 import 'package:creative_gym_mobile/shared/widgets/app_glass_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/onboarding_coach_mark.dart';
+import 'package:creative_gym_mobile/shared/widgets/soft_memory_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -332,10 +333,14 @@ class _ChallengeCardState extends State<_ChallengeCard> {
                       builder: (context, snapshot) {
                         final bytes = snapshot.data;
                         if (bytes != null && bytes.isNotEmpty) {
-                          return Image.memory(
-                            bytes,
+                          return SoftMemoryImage(
+                            bytes: bytes,
+                            placeholder: _FallbackCover(
+                              paletteIndex: widget.paletteIndex,
+                            ),
+                            revealKey:
+                                'challenge-cover-${widget.workout.id}-${widget.workout.coverUrl}',
                             fit: BoxFit.cover,
-                            gaplessPlayback: true,
                           );
                         }
 

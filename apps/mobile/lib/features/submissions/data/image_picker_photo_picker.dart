@@ -30,6 +30,10 @@ class ImagePickerPhotoPicker implements PhotoPicker {
       throw const PhotoPickerException('Фото должно быть не больше 10 МБ.');
     }
 
-    return SelectedPhoto(fileName: file.name, bytes: bytes);
+    return SelectedPhoto(
+      fileName: file.name,
+      bytes: bytes,
+      sourcePath: file.path,
+    );
   }
 }

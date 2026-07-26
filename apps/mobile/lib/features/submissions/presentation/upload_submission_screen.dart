@@ -10,8 +10,10 @@ import 'package:creative_gym_mobile/features/submissions/domain/photo_picker.dar
 import 'package:creative_gym_mobile/features/submissions/domain/selected_photo.dart';
 import 'package:creative_gym_mobile/features/submissions/domain/submission.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
+import 'package:creative_gym_mobile/shared/widgets/app_back_scope.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
+import 'package:creative_gym_mobile/shared/widgets/soft_memory_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -74,10 +76,12 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
+      backFallbackLocation: AppRoutes.challenges,
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Назад',
-          onPressed: () => context.go(AppRoutes.challenges),
+          onPressed: () =>
+              popOrGoBack(context, fallbackLocation: AppRoutes.challenges),
           icon: const Icon(Icons.arrow_back),
         ),
         title: const Text('Фото'),
@@ -366,59 +370,57 @@ class _PhotoContent extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Row(
-            key: ValueKey('photo-status-$statusLabel'),
-            children: [
-              if (hasUploadedPhoto && !hasSelection) ...[
-                const Icon(
-                      Icons.check_circle_rounded,
-                      size: 22,
-                      color: AppTheme.primaryDark,
-                    )
-                    .animate(key: const ValueKey('accepted-photo-check'))
-                    .fadeIn(
-                      duration: AppMotion.duration(
-                        context,
-                        AppMotion.standard,
-                      ),
-                    )
-                    .scaleXY(
-                      begin: 0.72,
-                      end: 1,
-                      duration: AppMotion.duration(
-                        context,
-                        AppMotion.expressive,
-                      ),
-                      curve: Curves.easeOutBack,
-                    ),
-                const SizedBox(width: 10),
-              ],
-              Expanded(
-                child: Text(
-                  statusLabel,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppTheme.ink,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              if (hasUploadedPhoto && !hasSelection)
-                PopupMenuButton<String>(
-                  tooltip: 'Ещё',
-                  onSelected: (value) {
-                    if (value == 'delete') {
-                      onDelete();
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(value: 'delete', child: Text('Удалить')),
+                key: ValueKey('photo-status-$statusLabel'),
+                children: [
+                  if (hasUploadedPhoto && !hasSelection) ...[
+                    const Icon(
+                          Icons.check_circle_rounded,
+                          size: 22,
+                          color: AppTheme.primaryDark,
+                        )
+                        .animate(key: const ValueKey('accepted-photo-check'))
+                        .fadeIn(
+                          duration: AppMotion.duration(
+                            context,
+                            AppMotion.standard,
+                          ),
+                        )
+                        .scaleXY(
+                          begin: 0.72,
+                          end: 1,
+                          duration: AppMotion.duration(
+                            context,
+                            AppMotion.expressive,
+                          ),
+                          curve: Curves.easeOutBack,
+                        ),
+                    const SizedBox(width: 10),
                   ],
-                ),
-            ],
-          )
-              .animate(key: ValueKey('photo-status-motion-$statusLabel'))
-              .fadeIn(
-                duration: AppMotion.duration(context, AppMotion.standard),
+                  Expanded(
+                    child: Text(
+                      statusLabel,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppTheme.ink,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (hasUploadedPhoto && !hasSelection)
+                    PopupMenuButton<String>(
+                      tooltip: 'Ещё',
+                      onSelected: (value) {
+                        if (value == 'delete') {
+                          onDelete();
+                        }
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(value: 'delete', child: Text('Удалить')),
+                      ],
+                    ),
+                ],
               )
+              .animate(key: ValueKey('photo-status-motion-$statusLabel'))
+              .fadeIn(duration: AppMotion.duration(context, AppMotion.standard))
               .slideY(
                 begin: 0.12,
                 end: 0,
@@ -468,7 +470,18 @@ class _PhotoPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = AppMotion.isReduced(context);
+    final imageBytes = bytes;
+    const emptyPreview = ColoredBox(
+      key: ValueKey('empty-photo-preview'),
+      color: Color(0xFFE7ECE8),
+      child: Center(
+        child: Icon(
+          Icons.add_photo_alternate_outlined,
+          size: 42,
+          color: AppTheme.mutedInk,
+        ),
+      ),
+    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppTheme.radiusL),
       child: AspectRatio(
@@ -476,61 +489,15 @@ class _PhotoPreview extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            AnimatedSwitcher(
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 240),
-              switchInCurve: Curves.easeOutCubic,
-              child: bytes == null
-                  ? const ColoredBox(
-                      key: ValueKey('empty-photo-preview'),
-                      color: Color(0xFFE7ECE8),
-                      child: Center(
-                        child: Icon(
-                          Icons.add_photo_alternate_outlined,
-                          size: 42,
-                          color: AppTheme.mutedInk,
-                        ),
-                      ),
-                    )
-                  : Image.memory(
-                          bytes!,
-                          fit: BoxFit.cover,
-                          gaplessPlayback: true,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const ColoredBox(
-                                color: Color(0xFFE7ECE8),
-                                child: Center(
-                                  child: Text('Не удалось показать фото'),
-                                ),
-                              ),
-                        )
-                        .animate(key: ObjectKey(bytes))
-                        .fadeIn(
-                          duration: AppMotion.duration(
-                            context,
-                            AppMotion.expressive,
-                          ),
-                        )
-                        .blurXY(
-                          begin: reduceMotion ? 0 : 7,
-                          end: 0,
-                          duration: AppMotion.duration(
-                            context,
-                            AppMotion.expressive,
-                          ),
-                          curve: Curves.easeOutCubic,
-                        )
-                        .scaleXY(
-                          begin: reduceMotion ? 1 : 1.018,
-                          end: 1,
-                          duration: AppMotion.duration(
-                            context,
-                            AppMotion.expressive,
-                          ),
-                          curve: Curves.easeOutCubic,
-                        ),
-            ),
+            if (imageBytes == null)
+              emptyPreview
+            else
+              SoftMemoryImage(
+                key: ObjectKey(imageBytes),
+                bytes: imageBytes,
+                placeholder: emptyPreview,
+                revealKey: imageBytes,
+              ),
             Positioned(
               left: 12,
               right: 12,

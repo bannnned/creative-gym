@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
@@ -8,6 +10,8 @@ import 'package:creative_gym_mobile/features/profile/presentation/widgets/crown_
 import 'package:creative_gym_mobile/features/profile/presentation/widgets/profile_work_artwork.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_glass_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
+import 'package:creative_gym_mobile/shared/widgets/authenticated_media.dart';
+import 'package:creative_gym_mobile/shared/widgets/soft_memory_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,6 +26,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _winnersOnly = false;
+  bool _isAvatarBusy = false;
+  Uint8List? _avatarPreviewBytes;
   late Future<ProfileData> _profileFuture;
   late Future<bool> _adminStatusFuture;
 
@@ -38,6 +44,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
         userId: widget.userId,
       ),
     );
+  }
+
+  Future<void> _changeAvatar() async {
+    if (_isAvatarBusy) {
+      return;
+    }
+    try {
+      final selected = await appDependencies.photoPicker.pickFromGallery();
+      if (selected == null || !mounted) {
+        return;
+      }
+      final edited = await appDependencies.avatarEditor.edit(context, selected);
+      if (edited == null || !mounted) {
+        return;
+      }
+      if (edited.bytes.length > 3 * 1024 * 1024) {
+        throw StateError('Фото профиля должно быть не больше 3 МБ.');
+      }
+
+      setState(() => _isAvatarBusy = true);
+      await appDependencies.profile.uploadAvatar(edited);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _avatarPreviewBytes = edited.bytes;
+        _isAvatarBusy = false;
+      });
+      _reload();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Фото профиля сохранено')));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isAvatarBusy = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
+    }
   }
 
   Future<void> _openAdmin() async {
@@ -161,6 +208,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             data: data,
             winnersOnly: _winnersOnly,
             onWinnersChanged: (value) => setState(() => _winnersOnly = value),
+            avatarPreviewBytes: _avatarPreviewBytes,
+            isAvatarBusy: _isAvatarBusy,
+            onChangeAvatar: data.isCurrentUser ? _changeAvatar : null,
           );
         },
       ),
@@ -173,11 +223,17 @@ class _ProfileContent extends StatelessWidget {
     required this.data,
     required this.winnersOnly,
     required this.onWinnersChanged,
+    required this.avatarPreviewBytes,
+    required this.isAvatarBusy,
+    required this.onChangeAvatar,
   });
 
   final ProfileData data;
   final bool winnersOnly;
   final ValueChanged<bool> onWinnersChanged;
+  final Uint8List? avatarPreviewBytes;
+  final bool isAvatarBusy;
+  final VoidCallback? onChangeAvatar;
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +244,12 @@ class _ProfileContent extends StatelessWidget {
       key: const ValueKey('profile-screen'),
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
-        const _ProfileAvatar(),
+        _ProfileAvatar(
+          data: data,
+          previewBytes: avatarPreviewBytes,
+          isBusy: isAvatarBusy,
+          onTap: onChangeAvatar,
+        ),
         const SizedBox(height: 12),
         Text(
           data.displayName,
@@ -274,36 +335,110 @@ class _ProfileContent extends StatelessWidget {
 }
 
 class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar();
+  const _ProfileAvatar({
+    required this.data,
+    required this.previewBytes,
+    required this.isBusy,
+    required this.onTap,
+  });
+
+  final ProfileData data;
+  final Uint8List? previewBytes;
+  final bool isBusy;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 104,
-        height: 104,
-        padding: const EdgeInsets.all(3),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x16000000),
-              blurRadius: 24,
-              offset: Offset(0, 10),
-            ),
-          ],
+    const fallback = DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF91B7A8), Color(0xFF244D42)],
         ),
-        child: const DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF91B7A8), Color(0xFF244D42)],
+      ),
+      child: Icon(Icons.person_rounded, color: Color(0xE6FFFFFF), size: 54),
+    );
+    final avatar = previewBytes != null
+        ? SoftMemoryImage(
+            bytes: previewBytes!,
+            placeholder: fallback,
+            revealKey: previewBytes!,
+          )
+        : data.avatarUrl.isNotEmpty
+        ? AuthenticatedMedia(mediaUrl: data.avatarUrl, fallback: fallback)
+        : fallback;
+
+    return Center(
+      child: Semantics(
+        button: onTap != null,
+        label: onTap == null
+            ? 'Фото профиля'
+            : data.avatarUrl.isEmpty && previewBytes == null
+            ? 'Добавить фото профиля'
+            : 'Изменить фото профиля',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: const ValueKey('profile-avatar-button'),
+            onTap: isBusy ? null : onTap,
+            customBorder: const CircleBorder(),
+            child: SizedBox(
+              width: 116,
+              height: 116,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x16000000),
+                          blurRadius: 24,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(child: avatar),
+                  ),
+                  if (onTap != null)
+                    Positioned(
+                      right: 2,
+                      bottom: 6,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryDark,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: isBusy
+                              ? const SizedBox(
+                                  width: 17,
+                                  height: 17,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.photo_camera_outlined,
+                                  color: Colors.white,
+                                  size: 17,
+                                ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-          child: Icon(Icons.person_rounded, color: Color(0xE6FFFFFF), size: 54),
         ),
       ),
     );

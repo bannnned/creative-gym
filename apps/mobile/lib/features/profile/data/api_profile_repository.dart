@@ -1,6 +1,8 @@
 import 'package:creative_gym_mobile/core/network/api_client.dart';
 import 'package:creative_gym_mobile/features/profile/domain/profile_data.dart';
 import 'package:creative_gym_mobile/features/profile/domain/profile_repository.dart';
+import 'package:creative_gym_mobile/features/submissions/domain/selected_photo.dart';
+import 'package:dio/dio.dart';
 
 class ApiProfileRepository implements ProfileRepository {
   const ApiProfileRepository(this._client);
@@ -31,6 +33,7 @@ class ApiProfileRepository implements ProfileRepository {
     return ProfileData(
       userId: profile['id'] as String? ?? userId ?? '',
       displayName: profile['display_name'] as String? ?? 'Участник',
+      avatarUrl: profile['avatar_url'] as String? ?? '',
       isCurrentUser: profile['is_current_user'] as bool? ?? userId == null,
       points: (profile['points'] as num?)?.toInt() ?? 0,
       firstPlaces: (profile['first_places'] as num?)?.toInt() ?? 0,
@@ -38,5 +41,27 @@ class ApiProfileRepository implements ProfileRepository {
       thirdPlaces: (profile['third_places'] as num?)?.toInt() ?? 0,
       works: works,
     );
+  }
+
+  @override
+  Future<String> uploadAvatar(SelectedPhoto photo) async {
+    try {
+      final json = await _client.putMultipart(
+        '/api/v1/profile/me/avatar',
+        formData: FormData.fromMap({
+          'avatar': MultipartFile.fromBytes(
+            photo.bytes,
+            filename: photo.fileName,
+          ),
+        }),
+      );
+      return json['avatar_url'] as String? ?? '';
+    } on DioException catch (error) {
+      final wrapped = error.error;
+      if (wrapped is Exception) {
+        throw wrapped;
+      }
+      rethrow;
+    }
   }
 }

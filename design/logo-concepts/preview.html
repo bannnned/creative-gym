@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Creative Gym — logo concepts</title>
+    <style>
+      @font-face {
+        font-family: "Onest";
+        src: url("../../apps/mobile/assets/fonts/Onest-Variable.ttf");
+      }
+
+      @font-face {
+        font-family: "Unbounded";
+        src: url("../../apps/mobile/assets/fonts/Unbounded-Variable.ttf");
+      }
+
+      :root {
+        color: #17211c;
+        background: #efeee9;
+        font-family: "Onest", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 1440px;
+        min-height: 1024px;
+        padding: 64px;
+        background:
+          radial-gradient(circle at 12% 18%, #ffffff 0, transparent 28%),
+          #efeee9;
+      }
+
+      header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        margin-bottom: 42px;
+      }
+
+      h1 {
+        max-width: 840px;
+        margin: 0;
+        font-family: "Unbounded", sans-serif;
+        font-size: 50px;
+        font-weight: 620;
+        line-height: 1.02;
+        letter-spacing: -2.4px;
+      }
+
+      header p {
+        max-width: 360px;
+        margin: 0;
+        color: #526058;
+        font-size: 18px;
+        line-height: 1.45;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 18px;
+      }
+
+      article {
+        overflow: hidden;
+        border: 1px solid rgba(23, 33, 28, 0.08);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.8);
+      }
+
+      .mark {
+        display: grid;
+        min-height: 400px;
+        place-items: center;
+        background: #f8f6f0;
+      }
+
+      .mark img {
+        width: 78%;
+        height: 78%;
+      }
+
+      .meta {
+        min-height: 178px;
+        padding: 22px;
+      }
+
+      .number {
+        color: #c66a4a;
+        font-family: "Unbounded", sans-serif;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      h2 {
+        margin: 12px 0 8px;
+        font-family: "Unbounded", sans-serif;
+        font-size: 18px;
+        font-weight: 610;
+        letter-spacing: -0.5px;
+      }
+
+      article p {
+        margin: 0;
+        color: #526058;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      footer {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        margin-top: 24px;
+        padding: 14px 18px;
+        border: 1px solid rgba(23, 33, 28, 0.08);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.66);
+      }
+
+      footer strong {
+        margin-right: auto;
+        font-family: "Unbounded", sans-serif;
+        font-size: 13px;
+        font-weight: 610;
+      }
+
+      .mini {
+        display: grid;
+        width: 52px;
+        height: 52px;
+        place-items: center;
+        border-radius: 14px;
+        background: #f8f6f0;
+        box-shadow: 0 5px 18px rgba(23, 33, 28, 0.08);
+      }
+
+      .mini img {
+        width: 38px;
+        height: 38px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>CREATIVE GYM<br />пять направлений знака</h1>
+      <p>
+        Первый раунд: только символы. Каждый должен работать как иконка,
+        аватар и маленькая подпись на фотографии.
+      </p>
+    </header>
+    <main>
+      <article>
+        <div class="mark"><img src="01-focus-frame.svg" alt="" /></div>
+        <div class="meta">
+          <div class="number">01</div>
+          <h2>Фокус</h2>
+          <p>Тренировка внимания и поиск необычной точки в обычном кадре.</p>
+        </div>
+      </article>
+      <article>
+        <div class="mark"><img src="02-cg-loop.svg" alt="" /></div>
+        <div class="meta">
+          <div class="number">02</div>
+          <h2>CG Loop</h2>
+          <p>Собственный монограммный знак — компактнее и более брендово.</p>
+        </div>
+      </article>
+      <article>
+        <div class="mark"><img src="03-frame-reps.svg" alt="" /></div>
+        <div class="meta">
+          <div class="number">03</div>
+          <h2>Повторы</h2>
+          <p>Кадр как упражнение: повторяешь, сдвигаешься, видишь иначе.</p>
+        </div>
+      </article>
+      <article>
+        <div class="mark"><img src="04-idea-burst.svg" alt="" /></div>
+        <div class="meta">
+          <div class="number">04</div>
+          <h2>Импульс</h2>
+          <p>Короткий момент появления идеи — смелее и энергичнее остальных.</p>
+        </div>
+      </article>
+      <article>
+        <div class="mark"><img src="05-curious-eye.svg" alt="" /></div>
+        <div class="meta">
+          <div class="number">05</div>
+          <h2>Взгляд</h2>
+          <p>Наблюдательность как навык; самый прямой образ продукта.</p>
+        </div>
+      </article>
+    </main>
+    <footer>
+      <strong>Проверка в размере иконки</strong>
+      <div class="mini"><img src="01-focus-frame.svg" alt="" /></div>
+      <div class="mini"><img src="02-cg-loop.svg" alt="" /></div>
+      <div class="mini"><img src="03-frame-reps.svg" alt="" /></div>
+      <div class="mini"><img src="04-idea-burst.svg" alt="" /></div>
+      <div class="mini"><img src="05-curious-eye.svg" alt="" /></div>
+    </footer>
+  </body>
+</html>

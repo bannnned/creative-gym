@@ -1,3 +1,4 @@
+import 'package:creative_gym_mobile/app/app_motion.dart';
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
@@ -5,10 +6,12 @@ import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
 import 'package:creative_gym_mobile/features/voting/domain/vote_pair.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
+import 'package:creative_gym_mobile/shared/widgets/app_back_scope.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/authenticated_media.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 class VotingScreen extends StatefulWidget {
@@ -55,10 +58,12 @@ class _VotingScreenState extends State<VotingScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
+      backFallbackLocation: AppRoutes.challenges,
       appBar: AppBar(
         leading: IconButton(
           tooltip: 'Назад',
-          onPressed: () => context.go(AppRoutes.challenges),
+          onPressed: () =>
+              popOrGoBack(context, fallbackLocation: AppRoutes.challenges),
           icon: const Icon(Icons.arrow_back),
         ),
         title: const Text('Голосование'),
@@ -478,20 +483,42 @@ class _PhotoChoice extends StatelessWidget {
                   ),
                 ),
                 if (selected)
-                  const Positioned(
+                  Positioned(
                     right: 10,
                     bottom: 10,
                     child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(Icons.check, color: AppTheme.primaryDark),
-                        ),
-                      ),
+                      child:
+                          const DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Padding(
+                                  padding: EdgeInsets.all(8),
+                                  child: Icon(
+                                    Icons.check,
+                                    color: AppTheme.primaryDark,
+                                  ),
+                                ),
+                              )
+                              .animate(
+                                key: ValueKey('vote-check-$semanticsLabel'),
+                              )
+                              .fadeIn(
+                                duration: AppMotion.duration(
+                                  context,
+                                  AppMotion.quick,
+                                ),
+                              )
+                              .scaleXY(
+                                begin: AppMotion.isReduced(context) ? 1 : 0.72,
+                                end: 1,
+                                duration: AppMotion.duration(
+                                  context,
+                                  AppMotion.standard,
+                                ),
+                                curve: Curves.easeOutBack,
+                              ),
                     ),
                   ),
               ],
@@ -658,10 +685,20 @@ class _VotingComplete extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(
-              Icons.check_circle_outline,
-              size: 44,
-              color: AppTheme.primaryDark,
-            ),
+                  Icons.check_circle_outline,
+                  size: 44,
+                  color: AppTheme.primaryDark,
+                )
+                .animate(key: const ValueKey('voting-complete-check'))
+                .fadeIn(
+                  duration: AppMotion.duration(context, AppMotion.standard),
+                )
+                .scaleXY(
+                  begin: AppMotion.isReduced(context) ? 1 : 0.78,
+                  end: 1,
+                  duration: AppMotion.duration(context, AppMotion.expressive),
+                  curve: Curves.easeOutBack,
+                ),
             const SizedBox(height: 16),
             Text(
               alreadyVoted ? 'Вы уже проголосовали' : 'Пар для голосования нет',

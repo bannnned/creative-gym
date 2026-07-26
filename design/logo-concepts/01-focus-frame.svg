@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Focus Frame</title>
+  <desc id="desc">Four open viewfinder corners surrounding an off-center creative dot.</desc>
+  <g fill="none" stroke="#17211C" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M176 92h-68c-9 0-16 7-16 16v68"/>
+    <path d="M336 92h68c9 0 16 7 16 16v68"/>
+    <path d="M420 336v68c0 9-7 16-16 16h-68"/>
+    <path d="M176 420h-68c-9 0-16-7-16-16v-68"/>
+  </g>
+  <circle cx="276" cy="236" r="58" fill="#2F6F5E"/>
+  <circle cx="276" cy="236" r="18" fill="#C66A4A"/>
+</svg>

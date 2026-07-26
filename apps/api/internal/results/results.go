@@ -6,6 +6,7 @@ var (
 	ErrRoomNotFound    = errors.New("room not found")
 	ErrResultsPending  = errors.New("results are not available")
 	ErrProfileNotFound = errors.New("profile not found")
+	ErrAvatarNotFound  = errors.New("avatar not found")
 )
 
 type SubmissionResult struct {
@@ -38,6 +39,7 @@ type ProfileWork struct {
 type Profile struct {
 	UserID        string
 	DisplayName   string
+	AvatarURL     string
 	IsCurrentUser bool
 	Points        int
 	FirstPlaces   int

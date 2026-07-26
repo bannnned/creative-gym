@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Curious Eye</title>
+  <desc id="desc">An abstract eye with a square pupil representing attention, observation, and a trained gaze.</desc>
+  <path
+    d="M64 256Q256 76 448 256Q256 436 64 256Z"
+    fill="none"
+    stroke="#17211C"
+    stroke-width="44"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <rect
+    x="195"
+    y="195"
+    width="122"
+    height="122"
+    rx="30"
+    fill="#2F6F5E"
+    transform="rotate(12 256 256)"
+  />
+  <circle cx="276" cy="236" r="22" fill="#C66A4A"/>
+</svg>

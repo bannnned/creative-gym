@@ -32,6 +32,7 @@ type profileEnvelope struct {
 type profileResponse struct {
 	UserID        string                `json:"id"`
 	DisplayName   string                `json:"display_name"`
+	AvatarURL     string                `json:"avatar_url"`
 	IsCurrentUser bool                  `json:"is_current_user"`
 	Points        int                   `json:"points"`
 	FirstPlaces   int                   `json:"first_places"`
@@ -84,6 +85,7 @@ func toProfileResponse(profile Profile) profileEnvelope {
 	response := profileResponse{
 		UserID:        profile.UserID,
 		DisplayName:   profile.DisplayName,
+		AvatarURL:     profile.AvatarURL,
 		IsCurrentUser: profile.IsCurrentUser,
 		Points:        profile.Points,
 		FirstPlaces:   profile.FirstPlaces,

@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:creative_gym_mobile/core/config/app_config.dart';
 import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:creative_gym_mobile/core/network/api_client.dart';
 import 'package:creative_gym_mobile/features/profile/data/api_profile_repository.dart';
 import 'package:creative_gym_mobile/features/results/data/api_results_repository.dart';
+import 'package:creative_gym_mobile/features/submissions/domain/selected_photo.dart';
 import 'package:creative_gym_mobile/features/voting/data/api_voting_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -71,6 +73,8 @@ void main() {
               'profile': {
                 'id': 'current-user',
                 'display_name': 'Участник',
+                'avatar_url':
+                    '/api/v1/profiles/current-user/avatar?v=current.jpg',
                 'is_current_user': true,
                 'points': 60,
                 'first_places': 0,
@@ -87,6 +91,23 @@ void main() {
               },
             }),
           );
+        case 'PUT /api/v1/profile/me/avatar':
+          expect(request.headers.contentType?.mimeType, 'multipart/form-data');
+          final uploadBody = await request.fold<List<int>>(
+            <int>[],
+            (bytes, chunk) => bytes..addAll(chunk),
+          );
+          final multipartBody = latin1.decode(uploadBody);
+          expect(multipartBody, contains('name="avatar"'));
+          expect(multipartBody, contains('filename="avatar.jpg"'));
+          request.response
+            ..statusCode = HttpStatus.created
+            ..write(
+              jsonEncode({
+                'avatar_url':
+                    '/api/v1/profiles/current-user/avatar?v=replaced.jpg',
+              }),
+            );
         case 'GET /api/v1/profiles/author-user':
           request.response.write(
             jsonEncode({
@@ -104,7 +125,7 @@ void main() {
           );
       }
       await request.response.close();
-      if (count == 5 && !handled.isCompleted) {
+      if (count == 6 && !handled.isCompleted) {
         handled.complete();
       }
     });
@@ -128,8 +149,20 @@ void main() {
     final profile = await ApiProfileRepository(client).getProfile();
     expect(profile.userId, 'current-user');
     expect(profile.isCurrentUser, isTrue);
+    expect(
+      profile.avatarUrl,
+      '/api/v1/profiles/current-user/avatar?v=current.jpg',
+    );
     expect(profile.points, 60);
     expect(profile.works.single.place, 2);
+
+    final avatarUrl = await ApiProfileRepository(client).uploadAvatar(
+      SelectedPhoto(
+        fileName: 'avatar.jpg',
+        bytes: Uint8List.fromList([0xff, 0xd8, 0xff]),
+      ),
+    );
+    expect(avatarUrl, '/api/v1/profiles/current-user/avatar?v=replaced.jpg');
 
     final publicProfile = await ApiProfileRepository(
       client,

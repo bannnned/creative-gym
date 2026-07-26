@@ -79,7 +79,7 @@ void main() {
     await openChallenges(tester);
     await chooseWorkout(tester, 'Тихое движение');
 
-    expect(find.text('Задание недели'), findsOneWidget);
+    expect(find.text('Задание недели'), findsNothing);
     expect(find.text('Челлендж'), findsNothing);
     expect(find.byKey(const ValueKey('current-workout-title')), findsOneWidget);
     await tester.scrollUntilVisible(
@@ -92,6 +92,11 @@ void main() {
     expect(find.text('Голосовать'), findsOneWidget);
     expect(find.text('Weekly Workouts'), findsNothing);
     expect(find.text('Gym Room'), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('challenge-list')), findsOneWidget);
+    expect(find.byKey(const ValueKey('continue-button')), findsNothing);
   });
 
   testWidgets('profile shows stats, winner filter, and swipe viewer', (
@@ -111,6 +116,7 @@ void main() {
     expect(find.text('Работы'), findsOneWidget);
     expect(find.byType(CrownIcon), findsNWidgets(8));
     expect(find.byType(ProfileWorkArtwork), findsNWidgets(12));
+    expect(find.byKey(const ValueKey('profile-avatar-button')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('winners-toggle')));
     await tester.pumpAndSettle();
@@ -121,6 +127,22 @@ void main() {
 
     final viewerFinder = find.byKey(const ValueKey('profile-photo-viewer'));
     expect(viewerFinder, findsOneWidget);
+    final zoomableWorkFinder = find.byKey(
+      const ValueKey('zoomable-profile-work-work-01'),
+    );
+    expect(zoomableWorkFinder, findsOneWidget);
+    final zoomableWork = tester.widget<InteractiveViewer>(zoomableWorkFinder);
+    expect(zoomableWork.minScale, 1);
+    expect(zoomableWork.maxScale, 5);
+    final fullScreenArtwork = tester.widget<ProfileWorkArtwork>(
+      find
+          .descendant(
+            of: zoomableWorkFinder,
+            matching: find.byType(ProfileWorkArtwork),
+          )
+          .first,
+    );
+    expect(fullScreenArtwork.fit, BoxFit.contain);
     await tester.drag(viewerFinder, const Offset(-320, 0));
     await tester.pumpAndSettle();
 
@@ -270,6 +292,7 @@ void main() {
 
     expect(find.text('Итог'), findsOneWidget);
     expect(find.text('Тренировка завершена'), findsOneWidget);
+    expect(find.byKey(const ValueKey('results-complete-check')), findsNothing);
     expect(find.text('Ваш кадр'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Посмотреть все работы'),
@@ -291,10 +314,44 @@ void main() {
     expect(find.text('Скрыть работы'), findsOneWidget);
     expect(find.text('Ваш кадр'), findsWidgets);
 
-    await tester.tap(find.text('Анонимный участник').first);
+    final firstResultPhoto = find.byKey(
+      const ValueKey('open-result-photo-evening-shapes-top-1'),
+    );
+    await tester.scrollUntilVisible(
+      firstResultPhoto,
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(firstResultPhoto);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('result-photo-viewer')), findsOneWidget);
+    expect(find.text('1 из 3'), findsOneWidget);
+    await tester.drag(
+      find.byKey(const ValueKey('result-photo-viewer')),
+      const Offset(-320, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('2 из 3'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('close-result-photo-viewer')));
+    await tester.pumpAndSettle();
+
+    final firstResultAuthor = find.byKey(
+      const ValueKey('open-result-profile-evening-shapes-top-1'),
+    );
+    await tester.ensureVisible(firstResultAuthor);
+    await tester.tap(firstResultAuthor);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('profile-screen')), findsOneWidget);
     expect(find.text('Участник'), findsOneWidget);
     expect(find.byKey(const ValueKey('admin-menu-button')), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Итог'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('current-workout-title')), findsOneWidget);
+    expect(find.byKey(const ValueKey('continue-button')), findsNothing);
   });
 }

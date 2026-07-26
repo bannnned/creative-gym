@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Frame Reps</title>
+  <desc id="desc">Two shifted image frames representing repetition, practice, and a changing point of view.</desc>
+  <rect
+    x="72"
+    y="72"
+    width="272"
+    height="272"
+    rx="54"
+    fill="none"
+    stroke="#17211C"
+    stroke-width="38"
+  />
+  <rect
+    x="168"
+    y="168"
+    width="272"
+    height="272"
+    rx="54"
+    fill="#F8F6F0"
+    stroke="#2F6F5E"
+    stroke-width="38"
+  />
+  <path d="M344 344h96v42c0 30-24 54-54 54h-42z" fill="#C66A4A"/>
+</svg>

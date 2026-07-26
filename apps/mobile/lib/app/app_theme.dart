@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppTheme {
+  static const bodyFontFamily = 'Onest';
+  static const accentFontFamily = 'Unbounded';
   static const ink = Color(0xFF17211C);
   static const mutedInk = Color(0xFF526058);
   static const primary = Color(0xFF2F6F5E);
@@ -16,12 +18,26 @@ abstract final class AppTheme {
       seedColor: primary,
       brightness: Brightness.light,
     );
+    final baseTextTheme = ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      fontFamily: bodyFontFamily,
+    ).textTheme;
+    final textTheme = baseTextTheme.copyWith(
+      displayLarge: _accentStyle(baseTextTheme.displayLarge),
+      displayMedium: _accentStyle(baseTextTheme.displayMedium),
+      displaySmall: _accentStyle(baseTextTheme.displaySmall),
+      headlineLarge: _accentStyle(baseTextTheme.headlineLarge),
+      headlineMedium: _accentStyle(baseTextTheme.headlineMedium),
+      headlineSmall: _accentStyle(baseTextTheme.headlineSmall),
+    );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: const Color(0xFFF8F6F0),
-      fontFamily: 'Roboto',
+      fontFamily: bodyFontFamily,
+      textTheme: textTheme,
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: ink,
@@ -29,6 +45,7 @@ abstract final class AppTheme {
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: ink,
+          fontFamily: bodyFontFamily,
           fontSize: 18,
           fontWeight: FontWeight.w700,
         ),
@@ -63,6 +80,14 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(radiusM),
         ),
       ),
+    );
+  }
+
+  static TextStyle? _accentStyle(TextStyle? style) {
+    return style?.copyWith(
+      fontFamily: accentFontFamily,
+      fontWeight: FontWeight.w600,
+      letterSpacing: -0.6,
     );
   }
 }

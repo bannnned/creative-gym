@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Split Viewfinder</title>
+  <desc id="desc">One minimal camera viewfinder split between two states of creative attention.</desc>
+  <g fill="none" stroke-width="42" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M180 76h-52c-29 0-52 23-52 52v52" stroke="#17211C"/>
+    <path d="M332 76h52c29 0 52 23 52 52v52" stroke="#2F6F5E"/>
+    <path d="M436 332v52c0 29-23 52-52 52h-52" stroke="#17211C"/>
+    <path d="M180 436h-52c-29 0-52-23-52-52v-52" stroke="#2F6F5E"/>
+  </g>
+  <path d="M214 256h84" fill="none" stroke="#526058" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="196" cy="256" r="18" fill="#2F6F5E"/>
+  <circle cx="316" cy="256" r="18" fill="#C66A4A"/>
+</svg>

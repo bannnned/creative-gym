@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Balanced Shift</title>
+  <desc id="desc">A refined pair of shifted rounded frames with a small completion point.</desc>
+  <rect
+    x="76"
+    y="76"
+    width="270"
+    height="270"
+    rx="56"
+    fill="none"
+    stroke="#17211C"
+    stroke-width="36"
+  />
+  <rect
+    x="166"
+    y="166"
+    width="270"
+    height="270"
+    rx="56"
+    fill="#F8F6F0"
+    stroke="#2F6F5E"
+    stroke-width="36"
+  />
+  <circle cx="400" cy="400" r="31" fill="#C66A4A"/>
+</svg>

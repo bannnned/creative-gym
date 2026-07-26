@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Open Frames</title>
+  <desc id="desc">Two airy open frames moving diagonally through the canvas.</desc>
+  <path
+    d="M270 82H130c-27 0-48 21-48 48v140M82 302v80c0 27 21 48 48 48h140"
+    fill="none"
+    stroke="#17211C"
+    stroke-width="38"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M242 430h140c27 0 48-21 48-48V242M430 210v-80c0-27-21-48-48-48H242"
+    fill="none"
+    stroke="#2F6F5E"
+    stroke-width="38"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <rect x="230" y="230" width="52" height="52" rx="17" fill="#C66A4A"/>
+</svg>

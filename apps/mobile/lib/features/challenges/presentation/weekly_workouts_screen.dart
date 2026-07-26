@@ -13,6 +13,7 @@ import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/onboarding_coach_mark.dart';
+import 'package:creative_gym_mobile/shared/widgets/soft_memory_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
@@ -87,6 +88,7 @@ class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
   Widget build(BuildContext context) {
     return AppGlassScaffold(
       showBackButton: true,
+      backFallbackLocation: AppRoutes.challenges,
       body: FutureBuilder<_HomeData>(
         future: _homeFuture,
         builder: (context, snapshot) {
@@ -242,7 +244,7 @@ class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
         if (!mounted) {
           return;
         }
-        _openRoomAction(joinedRoom);
+        await _openRoomAction(joinedRoom);
       } catch (error) {
         if (!mounted) {
           return;
@@ -260,19 +262,23 @@ class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
       return;
     }
 
-    _openRoomAction(room);
+    await _openRoomAction(room);
   }
 
-  void _openRoomAction(GymRoom room) {
-    switch (room.phase) {
-      case GymRoomPhase.upcoming:
-        return;
-      case GymRoomPhase.submission:
-        context.go(AppRoutes.roomUpload(room.id));
-      case GymRoomPhase.voting:
-        context.go(AppRoutes.roomVote(room.id));
-      case GymRoomPhase.results:
-        context.go(AppRoutes.roomResults(room.id));
+  Future<void> _openRoomAction(GymRoom room) async {
+    final location = switch (room.phase) {
+      GymRoomPhase.upcoming => null,
+      GymRoomPhase.submission => AppRoutes.roomUpload(room.id),
+      GymRoomPhase.voting => AppRoutes.roomVote(room.id),
+      GymRoomPhase.results => AppRoutes.roomResults(room.id),
+    };
+    if (location == null) {
+      return;
+    }
+
+    await context.push<void>(location);
+    if (mounted) {
+      _reload();
     }
   }
 
@@ -352,7 +358,12 @@ class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
                     borderRadius: BorderRadius.circular(20),
                     child: AspectRatio(
                       aspectRatio: 16 / 10,
-                      child: Image.memory(photo.bytes, fit: BoxFit.cover),
+                      child: SoftMemoryImage(
+                        bytes: photo.bytes,
+                        placeholder: const ColoredBox(color: Color(0xFFE7ECE8)),
+                        revealKey: photo.bytes,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -437,14 +448,6 @@ class _HomeContent extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
       children: [
         Text(
-          'Задание недели',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppTheme.primaryDark,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
           workout.title,
           key: const ValueKey('current-workout-title'),
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
@@ -462,7 +465,25 @@ class _HomeContent extends StatelessWidget {
             fontWeight: FontWeight.w400,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 24),
+        if (data.photoBytes != null) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppTheme.radiusL),
+            child: AspectRatio(
+              aspectRatio: 4 / 5,
+              child: SoftMemoryImage(
+                bytes: data.photoBytes!,
+                placeholder: const ColoredBox(color: Color(0xFFE7ECE8)),
+                revealKey: data.submission?.id ?? data.photoBytes!,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ] else if (room?.hasSubmission == true) ...[
+          const _AcceptedPhotoPlaceholder(),
+          const SizedBox(height: 8),
+        ],
         Row(
           children: [
             TextButton(
@@ -484,20 +505,7 @@ class _HomeContent extends StatelessWidget {
             ],
           ],
         ),
-        const SizedBox(height: 24),
-        if (data.photoBytes != null) ...[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppTheme.radiusL),
-            child: AspectRatio(
-              aspectRatio: 4 / 5,
-              child: Image.memory(data.photoBytes!, fit: BoxFit.cover),
-            ),
-          ),
-          const SizedBox(height: 18),
-        ] else if (room?.hasSubmission == true) ...[
-          const _AcceptedPhotoPlaceholder(),
-          const SizedBox(height: 18),
-        ],
+        const SizedBox(height: 12),
         GlassPanel(
           key: statusTargetKey,
           padding: const EdgeInsets.all(20),

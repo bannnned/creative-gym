@@ -5,9 +5,14 @@ import 'package:creative_gym_mobile/shared/widgets/authenticated_media.dart';
 import 'package:flutter/material.dart';
 
 class ProfileWorkArtwork extends StatelessWidget {
-  const ProfileWorkArtwork({super.key, required this.work});
+  const ProfileWorkArtwork({
+    super.key,
+    required this.work,
+    this.fit = BoxFit.cover,
+  });
 
   final ProfileWork work;
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +27,7 @@ class ProfileWorkArtwork extends StatelessWidget {
     return AuthenticatedMedia(
       mediaUrl: work.mediaUrl,
       fallback: fallback,
-      fit: BoxFit.cover,
+      fit: fit,
     );
   }
 }

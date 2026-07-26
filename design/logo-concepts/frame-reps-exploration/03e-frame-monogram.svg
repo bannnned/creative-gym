@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Frame Monogram</title>
+  <desc id="desc">Nested open frames subtly forming the initials C and G.</desc>
+  <path
+    d="M330 86H146c-33 0-60 27-60 60v220c0 33 27 60 60 60h184"
+    fill="none"
+    stroke="#17211C"
+    stroke-width="42"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M250 176h102c41 0 74 33 74 74v102c0 41-33 74-74 74H250c-41 0-74-33-74-74V250c0-41 33-74 74-74Zm30 110h146"
+    fill="#F8F6F0"
+    stroke="#2F6F5E"
+    stroke-width="36"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <rect x="390" y="390" width="52" height="52" rx="17" fill="#C66A4A"/>
+</svg>

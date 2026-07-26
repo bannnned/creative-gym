@@ -2,6 +2,7 @@ class ProfileData {
   const ProfileData({
     this.userId = '',
     this.displayName = 'Участник',
+    this.avatarUrl = '',
     this.isCurrentUser = true,
     required this.points,
     required this.firstPlaces,
@@ -12,6 +13,7 @@ class ProfileData {
 
   final String userId;
   final String displayName;
+  final String avatarUrl;
   final bool isCurrentUser;
   final int points;
   final int firstPlaces;

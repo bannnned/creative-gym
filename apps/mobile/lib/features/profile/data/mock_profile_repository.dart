@@ -1,6 +1,7 @@
 import 'package:creative_gym_mobile/features/profile/data/mock_profile_data.dart';
 import 'package:creative_gym_mobile/features/profile/domain/profile_data.dart';
 import 'package:creative_gym_mobile/features/profile/domain/profile_repository.dart';
+import 'package:creative_gym_mobile/features/submissions/domain/selected_photo.dart';
 
 class MockProfileRepository implements ProfileRepository {
   const MockProfileRepository();
@@ -20,5 +21,10 @@ class MockProfileRepository implements ProfileRepository {
       thirdPlaces: mockProfileData.thirdPlaces,
       works: mockProfileData.works,
     );
+  }
+
+  @override
+  Future<String> uploadAvatar(SelectedPhoto photo) async {
+    return '/demo/profile/avatar';
   }
 }

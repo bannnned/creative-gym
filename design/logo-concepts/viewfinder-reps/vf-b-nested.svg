@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Nested Viewfinder</title>
+  <desc id="desc">A large camera viewfinder containing a smaller off-center focus frame.</desc>
+  <g fill="none" stroke="#17211C" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M184 70h-62c-29 0-52 23-52 52v62"/>
+    <path d="M328 70h62c29 0 52 23 52 52v62"/>
+    <path d="M442 328v62c0 29-23 52-52 52h-62"/>
+    <path d="M184 442h-62c-29 0-52-23-52-52v-62"/>
+  </g>
+  <g fill="none" stroke="#2F6F5E" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M224 174h-24c-15 0-26 11-26 26v24"/>
+    <path d="M288 174h24c15 0 26 11 26 26v24"/>
+    <path d="M338 288v24c0 15-11 26-26 26h-24"/>
+    <path d="M224 338h-24c-15 0-26-11-26-26v-24"/>
+  </g>
+  <circle cx="276" cy="236" r="15" fill="#F04438"/>
+</svg>

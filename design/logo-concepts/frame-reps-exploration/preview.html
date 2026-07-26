@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Creative Gym — Frame Reps exploration</title>
+    <style>
+      @font-face {
+        font-family: "Onest";
+        src: url("../../../apps/mobile/assets/fonts/Onest-Variable.ttf");
+      }
+
+      @font-face {
+        font-family: "Unbounded";
+        src: url("../../../apps/mobile/assets/fonts/Unbounded-Variable.ttf");
+      }
+
+      :root {
+        color: #17211c;
+        background: #efeee9;
+        font-family: "Onest", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 1440px;
+        min-height: 1024px;
+        padding: 58px 64px;
+        background:
+          radial-gradient(circle at 10% 16%, #fff 0, transparent 26%),
+          #efeee9;
+      }
+
+      header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        margin-bottom: 36px;
+      }
+
+      h1 {
+        max-width: 900px;
+        margin: 0;
+        font-family: "Unbounded", sans-serif;
+        font-size: 48px;
+        font-weight: 620;
+        line-height: 1.04;
+        letter-spacing: -2.3px;
+      }
+
+      header p {
+        max-width: 350px;
+        margin: 0;
+        color: #526058;
+        font-size: 18px;
+        line-height: 1.45;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 18px;
+      }
+
+      article {
+        overflow: hidden;
+        border: 1px solid rgba(23, 33, 28, 0.08);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .mark {
+        display: grid;
+        min-height: 390px;
+        place-items: center;
+        background: #f8f6f0;
+      }
+
+      .mark img {
+        width: 78%;
+        height: 78%;
+      }
+
+      .meta {
+        min-height: 168px;
+        padding: 22px;
+      }
+
+      .number {
+        color: #c66a4a;
+        font-family: "Unbounded", sans-serif;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      h2 {
+        margin: 12px 0 8px;
+        font-family: "Unbounded", sans-serif;
+        font-size: 17px;
+        font-weight: 610;
+        letter-spacing: -0.5px;
+      }
+
+      article p {
+        margin: 0;
+        color: #526058;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      footer {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        margin-top: 24px;
+        padding: 14px 18px;
+        border: 1px solid rgba(23, 33, 28, 0.08);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.66);
+      }
+
+      footer strong {
+        margin-right: auto;
+        font-family: "Unbounded", sans-serif;
+        font-size: 13px;
+        font-weight: 610;
+      }
+
+      .mini {
+        display: grid;
+        width: 52px;
+        height: 52px;
+        place-items: center;
+        border-radius: 14px;
+        background: #f8f6f0;
+        box-shadow: 0 5px 18px rgba(23, 33, 28, 0.08);
+      }
+
+      .mini img {
+        width: 38px;
+        height: 38px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>ПОВТОРЫ<br />пять новых характеров</h1>
+      <p>
+        Одна идея — разные степени строгости, движения и брендовой
+        самостоятельности.
+      </p>
+    </header>
+    <main>
+      <article>
+        <div class="mark"><img src="03a-balanced-shift.svg" alt="" /></div>
+        <div class="meta">
+          <div class="number">03A</div>
+          <h2>Баланс</h2>
+          <p>Полировка исходника: спокойнее, мягче и увереннее.</p>
+        </div>
+      </article>
+      <article>
+        <div class="mark"><img src="03b-open-frames.svg" alt="" /></div>
+        <div class="meta">
+          <div class="number">03B</div>
+          <h2>Воздух</h2>
+          <p>Открытые рамки, меньше массы и больше ощущения движения.</p>
+        </div>
+      </article>
+      <article>
+        <div class="mark"><img src="03c-three-reps.svg" alt="" /></div>
+        <div class="meta">
+          <div class="number">03C</div>
+          <h2>Три подхода</h2>
+          <p>Самая буквальная идея регулярной творческой тренировки.</p>
+        </div>
+      </article>
+      <article>
+        <div class="mark"><img src="03d-crop-motion.svg" alt="" /></div>
+        <div class="meta">
+          <div class="number">03D</div>
+          <h2>Движение</h2>
+          <p>Динамичный жест: от первой точки к следующему решению.</p>
+        </div>
+      </article>
+      <article>
+        <div class="mark"><img src="03e-frame-monogram.svg" alt="" /></div>
+        <div class="meta">
+          <div class="number">03E</div>
+          <h2>Монограмма</h2>
+          <p>Рамки начинают складываться в собственный знак CG.</p>
+        </div>
+      </article>
+    </main>
+    <footer>
+      <strong>Проверка в размере иконки</strong>
+      <div class="mini"><img src="03a-balanced-shift.svg" alt="" /></div>
+      <div class="mini"><img src="03b-open-frames.svg" alt="" /></div>
+      <div class="mini"><img src="03c-three-reps.svg" alt="" /></div>
+      <div class="mini"><img src="03d-crop-motion.svg" alt="" /></div>
+      <div class="mini"><img src="03e-frame-monogram.svg" alt="" /></div>
+    </footer>
+  </body>
+</html>

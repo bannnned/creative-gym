@@ -84,6 +84,7 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 	)
 	var submissionObjectStore submissions.ObjectStore
 	var challengeObjectStore challenges.ObjectStore
+	var avatarObjectStore results.AvatarObjectStore
 	if cfg.S3.Complete() {
 		s3Store, err := storage.NewS3ObjectStore(context.Background(), cfg.S3)
 		if err != nil {
@@ -91,6 +92,7 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 		} else {
 			submissionObjectStore = s3Store
 			challengeObjectStore = s3Store
+			avatarObjectStore = s3Store
 		}
 	} else if cfg.S3.Enabled() {
 		logger.Error("s3 config is incomplete; upload routes will be unavailable")
@@ -106,11 +108,13 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 		writeJSON,
 		writeAPIError,
 	)
+	resultsRepository := results.NewRepository(dbPool)
 	resultsHandler := results.NewHandler(
-		results.NewRepository(dbPool),
+		resultsRepository,
 		writeJSON,
 		writeAPIError,
 	)
+	resultsHandler.WithObjectStore(avatarObjectStore)
 	challengeHandler.WithObjectStore(challengeObjectStore)
 
 	mux.HandleFunc("GET /api/v1/challenges/active", challengeHandler.ListActive)
@@ -131,7 +135,9 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 	mux.HandleFunc("POST /api/v1/rooms/{roomId}/votes", votingHandler.CastVote)
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}/results", resultsHandler.GetRoomResult)
 	mux.HandleFunc("GET /api/v1/profile/me", resultsHandler.GetProfile)
+	mux.HandleFunc("PUT /api/v1/profile/me/avatar", resultsHandler.UploadAvatar)
 	mux.HandleFunc("GET /api/v1/profiles/{userId}", resultsHandler.GetPublicProfile)
+	mux.HandleFunc("GET /api/v1/profiles/{userId}/avatar", resultsHandler.GetAvatar)
 	mux.HandleFunc("DELETE /api/v1/submissions/{submissionId}", submissionHandler.DeleteMine)
 	mux.HandleFunc("GET /api/v1/submissions/{submissionId}/media", submissionHandler.GetMedia)
 

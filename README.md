@@ -40,6 +40,8 @@ submissions.
 - [Backend Operations](docs/13-backend-operations.md) - current Timeweb VPS topology, verified state, health checks, and runbooks.
 - [PostgreSQL Backup Setup](deploy/timeweb/vps/BACKUP_SETUP.md) - daily local/S3 backups and restore verification.
 - [Simple UX Plan](docs/14-simple-ux-plan.md) - active minimal-interface direction for the Flutter app.
+- [Product Discovery Backlog](docs/16-product-discovery-backlog.md) - uncommitted product hypotheses and near-term experiments.
+- [Retention Implementation Plan](docs/17-retention-implementation-plan.md) - the next implementation slice for post-submission progress, notifications, warm-ups, and seasons.
 
 ## North Star
 

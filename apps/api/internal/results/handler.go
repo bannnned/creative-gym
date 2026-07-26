@@ -16,6 +16,7 @@ type Store interface {
 
 type Handler struct {
 	store         Store
+	objects       AvatarObjectStore
 	writeJSON     func(http.ResponseWriter, int, any)
 	writeAPIError func(http.ResponseWriter, int, string, string)
 }

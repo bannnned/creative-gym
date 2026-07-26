@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetLeft="14dp"
+    android:insetTop="14dp"
+    android:insetRight="14dp"
+    android:insetBottom="14dp">
+    <vector
+        android:width="108dp"
+        android:height="108dp"
+        android:viewportWidth="512"
+        android:viewportHeight="512">
+        <path
+            android:pathData="M184,70L122,70C93,70 70,93 70,122L70,184M328,70L390,70C419,70 442,93 442,122L442,184M442,328L442,390C442,419 419,442 390,442L328,442M184,442L122,442C93,442 70,419 70,390L70,328"
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#17211C"
+            android:strokeWidth="40"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M224,174L200,174C185,174 174,185 174,200L174,224M288,174L312,174C327,174 338,185 338,200L338,224M338,288L338,312C338,327 327,338 312,338L288,338M224,338L200,338C185,338 174,327 174,312L174,288"
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#2F6F5E"
+            android:strokeWidth="30"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M291,236A15,15 0,1 1,261 236A15,15 0,1 1,291 236"
+            android:fillColor="#F04438" />
+    </vector>
+</inset>

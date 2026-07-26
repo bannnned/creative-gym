@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Crop Motion</title>
+  <desc id="desc">Two opposing crop gestures connected by a diagonal creative movement.</desc>
+  <path
+    d="M250 76H124c-27 0-48 21-48 48v126"
+    fill="none"
+    stroke="#17211C"
+    stroke-width="46"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M262 436h126c27 0 48-21 48-48V262"
+    fill="none"
+    stroke="#2F6F5E"
+    stroke-width="46"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="m184 328 144-144"
+    fill="none"
+    stroke="#526058"
+    stroke-width="34"
+    stroke-linecap="round"
+  />
+  <circle cx="184" cy="328" r="28" fill="#C66A4A"/>
+  <circle cx="328" cy="184" r="28" fill="#2F6F5E"/>
+</svg>
