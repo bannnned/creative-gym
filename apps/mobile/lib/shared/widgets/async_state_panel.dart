@@ -1,6 +1,7 @@
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:flutter/material.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 enum AsyncLoadingLayout { detail, list, photo, voting, profile }
 
@@ -41,7 +42,7 @@ class AsyncContentTransition extends StatelessWidget {
   }
 }
 
-class AsyncLoadingPanel extends StatefulWidget {
+class AsyncLoadingPanel extends StatelessWidget {
   const AsyncLoadingPanel({
     super.key,
     this.message = 'Загрузка...',
@@ -52,45 +53,22 @@ class AsyncLoadingPanel extends StatefulWidget {
   final AsyncLoadingLayout layout;
 
   @override
-  State<AsyncLoadingPanel> createState() => _AsyncLoadingPanelState();
-}
-
-class _AsyncLoadingPanelState extends State<AsyncLoadingPanel>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1050),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final effect = reduceMotion
+        ? const SolidColorEffect(color: Color(0xFFE7EAE5))
+        : const PulseEffect(
+            from: Color(0xFFF0F2ED),
+            to: Color(0xFFE0E5E0),
+            duration: Duration(milliseconds: 1150),
+          );
     return Semantics(
-      label: widget.message,
+      label: message,
       child: ExcludeSemantics(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) {
-            final progress = reduceMotion ? 0.5 : _controller.value;
-            final color = Color.lerp(
-              const Color(0xFFE2E7E2),
-              const Color(0xFFF0F2ED),
-              Curves.easeInOut.transform(progress),
-            )!;
-            return _SkeletonLayout(layout: widget.layout, color: color);
-          },
+        child: Skeletonizer.zone(
+          effect: effect,
+          ignorePointers: true,
+          child: _SkeletonLayout(layout: layout),
         ),
       ),
     );
@@ -98,27 +76,24 @@ class _AsyncLoadingPanelState extends State<AsyncLoadingPanel>
 }
 
 class _SkeletonLayout extends StatelessWidget {
-  const _SkeletonLayout({required this.layout, required this.color});
+  const _SkeletonLayout({required this.layout});
 
   final AsyncLoadingLayout layout;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return switch (layout) {
-      AsyncLoadingLayout.list => _SkeletonList(color: color),
-      AsyncLoadingLayout.photo => _SkeletonPhoto(color: color),
-      AsyncLoadingLayout.voting => _SkeletonVoting(color: color),
-      AsyncLoadingLayout.profile => _SkeletonProfile(color: color),
-      AsyncLoadingLayout.detail => _SkeletonDetail(color: color),
+      AsyncLoadingLayout.list => const _SkeletonList(),
+      AsyncLoadingLayout.photo => const _SkeletonPhoto(),
+      AsyncLoadingLayout.voting => const _SkeletonVoting(),
+      AsyncLoadingLayout.profile => const _SkeletonProfile(),
+      AsyncLoadingLayout.detail => const _SkeletonDetail(),
     };
   }
 }
 
 class _SkeletonList extends StatelessWidget {
-  const _SkeletonList({required this.color});
-
-  final Color color;
+  const _SkeletonList();
 
   @override
   Widget build(BuildContext context) {
@@ -127,12 +102,12 @@ class _SkeletonList extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _SkeletonLine(color: color, widthFactor: 0.28, height: 18),
+        const _SkeletonLine(widthFactor: 0.28, height: 18),
         const SizedBox(height: 14),
         for (var index = 0; index < 3; index++) ...[
-          AspectRatio(
+          const AspectRatio(
             aspectRatio: 16 / 8.4,
-            child: _SkeletonBlock(color: color, radius: 24),
+            child: _SkeletonBlock(radius: 24),
           ),
           const SizedBox(height: 18),
         ],
@@ -142,9 +117,7 @@ class _SkeletonList extends StatelessWidget {
 }
 
 class _SkeletonDetail extends StatelessWidget {
-  const _SkeletonDetail({required this.color});
-
-  final Color color;
+  const _SkeletonDetail();
 
   @override
   Widget build(BuildContext context) {
@@ -152,30 +125,25 @@ class _SkeletonDetail extends StatelessWidget {
       key: const ValueKey('loading-skeleton-detail'),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
       physics: const NeverScrollableScrollPhysics(),
-      children: [
-        _SkeletonLine(color: color, widthFactor: 0.62, height: 30),
-        const SizedBox(height: 12),
-        _SkeletonLine(color: color, widthFactor: 0.38),
-        const SizedBox(height: 28),
-        AspectRatio(
-          aspectRatio: 16 / 10,
-          child: _SkeletonBlock(color: color, radius: 24),
-        ),
-        const SizedBox(height: 24),
-        _SkeletonLine(color: color, widthFactor: 0.88),
-        const SizedBox(height: 10),
-        _SkeletonLine(color: color, widthFactor: 0.72),
-        const SizedBox(height: 28),
-        _SkeletonBlock(color: color, height: 54, radius: 18),
+      children: const [
+        _SkeletonLine(widthFactor: 0.62, height: 30),
+        SizedBox(height: 12),
+        _SkeletonLine(widthFactor: 0.38),
+        SizedBox(height: 28),
+        AspectRatio(aspectRatio: 16 / 10, child: _SkeletonBlock(radius: 24)),
+        SizedBox(height: 24),
+        _SkeletonLine(widthFactor: 0.88),
+        SizedBox(height: 10),
+        _SkeletonLine(widthFactor: 0.72),
+        SizedBox(height: 28),
+        _SkeletonBlock(height: 54, radius: 18),
       ],
     );
   }
 }
 
 class _SkeletonPhoto extends StatelessWidget {
-  const _SkeletonPhoto({required this.color});
-
-  final Color color;
+  const _SkeletonPhoto();
 
   @override
   Widget build(BuildContext context) {
@@ -184,32 +152,30 @@ class _SkeletonPhoto extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 32),
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _SkeletonLine(color: color, widthFactor: 0.58, height: 26),
+        const _SkeletonLine(widthFactor: 0.58, height: 26),
         const SizedBox(height: 10),
-        _SkeletonLine(color: color, widthFactor: 0.34),
+        const _SkeletonLine(widthFactor: 0.34),
         const SizedBox(height: 24),
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 430),
-            child: AspectRatio(
+            child: const AspectRatio(
               aspectRatio: 4 / 5,
-              child: _SkeletonBlock(color: color, radius: 22),
+              child: _SkeletonBlock(radius: 22),
             ),
           ),
         ),
         const SizedBox(height: 22),
-        _SkeletonLine(color: color, widthFactor: 0.46, height: 20),
+        const _SkeletonLine(widthFactor: 0.46, height: 20),
         const SizedBox(height: 18),
-        _SkeletonBlock(color: color, height: 54, radius: 18),
+        const _SkeletonBlock(height: 54, radius: 18),
       ],
     );
   }
 }
 
 class _SkeletonVoting extends StatelessWidget {
-  const _SkeletonVoting({required this.color});
-
-  final Color color;
+  const _SkeletonVoting();
 
   @override
   Widget build(BuildContext context) {
@@ -218,32 +184,32 @@ class _SkeletonVoting extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       child: Column(
         children: [
-          _SkeletonLine(color: color, widthFactor: 0.62, height: 26),
+          const _SkeletonLine(widthFactor: 0.62, height: 26),
           const SizedBox(height: 10),
-          _SkeletonLine(color: color, widthFactor: 0.18),
+          const _SkeletonLine(widthFactor: 0.18),
           const SizedBox(height: 24),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            children: const [
               Expanded(
                 child: AspectRatio(
                   aspectRatio: 4 / 5,
-                  child: _SkeletonBlock(color: color, radius: 20),
+                  child: _SkeletonBlock(radius: 20),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12),
               Expanded(
                 child: AspectRatio(
                   aspectRatio: 4 / 5,
-                  child: _SkeletonBlock(color: color, radius: 20),
+                  child: _SkeletonBlock(radius: 20),
                 ),
               ),
             ],
           ),
           const Spacer(),
-          _SkeletonLine(color: color, widthFactor: 0.42),
+          const _SkeletonLine(widthFactor: 0.42),
           const SizedBox(height: 18),
-          _SkeletonBlock(color: color, height: 54, radius: 18),
+          const _SkeletonBlock(height: 54, radius: 18),
         ],
       ),
     );
@@ -251,9 +217,7 @@ class _SkeletonVoting extends StatelessWidget {
 }
 
 class _SkeletonProfile extends StatelessWidget {
-  const _SkeletonProfile({required this.color});
-
-  final Color color;
+  const _SkeletonProfile();
 
   @override
   Widget build(BuildContext context) {
@@ -262,20 +226,13 @@ class _SkeletonProfile extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        Center(
-          child: _SkeletonBlock(
-            color: color,
-            width: 104,
-            height: 104,
-            radius: 52,
-          ),
-        ),
+        const Center(child: Bone.circle(size: 104)),
         const SizedBox(height: 18),
-        Center(child: _SkeletonLine(color: color, width: 150, height: 24)),
+        const Center(child: Bone.text(width: 150, fontSize: 24)),
         const SizedBox(height: 26),
-        _SkeletonBlock(color: color, height: 132, radius: 24),
+        const _SkeletonBlock(height: 132, radius: 24),
         const SizedBox(height: 26),
-        _SkeletonLine(color: color, widthFactor: 0.28, height: 22),
+        const _SkeletonLine(widthFactor: 0.28, height: 22),
         const SizedBox(height: 14),
         GridView.count(
           crossAxisCount: 3,
@@ -285,7 +242,7 @@ class _SkeletonProfile extends StatelessWidget {
           crossAxisSpacing: 4,
           children: [
             for (var index = 0; index < 6; index++)
-              _SkeletonBlock(color: color, radius: 3),
+              const _SkeletonBlock(radius: 3),
           ],
         ),
       ],
@@ -294,25 +251,16 @@ class _SkeletonProfile extends StatelessWidget {
 }
 
 class _SkeletonLine extends StatelessWidget {
-  const _SkeletonLine({
-    required this.color,
-    this.width,
-    this.widthFactor,
-    this.height = 14,
-  });
+  const _SkeletonLine({this.widthFactor, this.height = 14});
 
-  final Color color;
-  final double? width;
   final double? widthFactor;
   final double height;
 
   @override
   Widget build(BuildContext context) {
-    final line = _SkeletonBlock(
-      color: color,
-      width: width,
+    final line = Bone(
       height: height,
-      radius: height / 2,
+      borderRadius: BorderRadius.circular(height / 2),
     );
     if (widthFactor == null) {
       return line;
@@ -326,34 +274,14 @@ class _SkeletonLine extends StatelessWidget {
 }
 
 class _SkeletonBlock extends StatelessWidget {
-  const _SkeletonBlock({
-    required this.color,
-    this.width,
-    this.height,
-    this.radius = 16,
-  });
+  const _SkeletonBlock({this.height, this.radius = 16});
 
-  final Color color;
-  final double? width;
   final double? height;
   final double radius;
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Colors.transparent,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(radius),
-          border: Border.all(
-            color: AppTheme.surfaceStroke.withValues(alpha: 0.55),
-          ),
-        ),
-      ),
-    );
+    return Bone(height: height, borderRadius: BorderRadius.circular(radius));
   }
 }
 
