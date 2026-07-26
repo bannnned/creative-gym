@@ -160,13 +160,11 @@ class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
       case GymRoomPhase.submission:
         context.go(AppRoutes.roomUpload(room.id));
       case GymRoomPhase.voting:
-        context.go(AppRoutes.roomVote(room.id, demo: _isDemoRoom(room.id)));
+        context.go(AppRoutes.roomVote(room.id));
       case GymRoomPhase.results:
-        context.go(AppRoutes.roomResults(room.id, demo: _isDemoRoom(room.id)));
+        context.go(AppRoutes.roomResults(room.id));
     }
   }
-
-  bool _isDemoRoom(String roomId) => !roomId.startsWith('10000000-');
 
   Future<void> _showRules(WeeklyWorkout workout) async {
     await showModalBottomSheet<void>(

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:creative_gym_mobile/core/config/app_config.dart';
+import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:creative_gym_mobile/core/network/api_client.dart';
 import 'package:creative_gym_mobile/features/profile/data/api_profile_repository.dart';
 import 'package:creative_gym_mobile/features/results/data/api_results_repository.dart';
@@ -136,5 +137,41 @@ void main() {
     expect(publicProfile.displayName, 'Автор');
     expect(publicProfile.isCurrentUser, isFalse);
     await handled.future;
+  });
+
+  test('exposes results_pending as an API error the UI can handle', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+
+    server.listen((request) async {
+      request.response
+        ..statusCode = HttpStatus.conflict
+        ..headers.contentType = ContentType.json
+        ..write(
+          jsonEncode({
+            'error': {
+              'code': 'results_pending',
+              'message': 'Results are not available yet.',
+            },
+          }),
+        );
+      await request.response.close();
+    });
+
+    final client = ApiClient(
+      AppConfig(
+        mode: DataSourceMode.api,
+        apiBaseUrl: 'http://127.0.0.1:${server.port}',
+      ),
+    );
+
+    await expectLater(
+      ApiResultsRepository(client).getRoomResult('room-1'),
+      throwsA(
+        isA<ApiException>()
+            .having((error) => error.code, 'code', 'results_pending')
+            .having((error) => error.statusCode, 'statusCode', 409),
+      ),
+    );
   });
 }

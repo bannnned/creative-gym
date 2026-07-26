@@ -1,6 +1,7 @@
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
+import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
 import 'package:creative_gym_mobile/features/results/domain/room_result.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
@@ -25,6 +26,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   late Future<void> _loadFuture;
   GymRoom? _room;
   RoomResult? _result;
+  bool _resultsPending = false;
   bool _showAll = false;
 
   @override
@@ -36,11 +38,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
   Future<void> _load() async {
     final room = await appDependencies.rooms.getRoomById(widget.roomId);
     RoomResult? result;
+    var resultsPending = false;
     if (room != null && (widget.demoMode || room.canViewResults)) {
-      result = await appDependencies.results.getRoomResult(widget.roomId);
+      try {
+        result = await appDependencies.results.getRoomResult(widget.roomId);
+      } on ApiException catch (error) {
+        if (error.code != 'results_pending') {
+          rethrow;
+        }
+        resultsPending = true;
+      }
     }
     _room = room;
     _result = result;
+    _resultsPending = resultsPending;
   }
 
   void _reload() {
@@ -82,6 +93,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
             return _ResultsState(
               title: 'Итог пока недоступен',
               message: room.deadlineLabel,
+            );
+          }
+          if (_resultsPending) {
+            return _ResultsState(
+              title: 'Итоги ещё не готовы',
+              message: 'Они появятся после завершения голосования.',
+              actionLabel: 'Обновить',
+              onAction: _reload,
             );
           }
           final result = _result;
@@ -312,10 +331,17 @@ class _ResultPreview extends StatelessWidget {
 }
 
 class _ResultsState extends StatelessWidget {
-  const _ResultsState({required this.title, required this.message});
+  const _ResultsState({
+    required this.title,
+    required this.message,
+    this.actionLabel = 'К заданию',
+    this.onAction,
+  });
 
   final String title;
   final String message;
+  final String actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -336,8 +362,8 @@ class _ResultsState extends StatelessWidget {
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 20),
             TextButton(
-              onPressed: () => context.go(AppRoutes.challenges),
-              child: const Text('К заданию'),
+              onPressed: onAction ?? () => context.go(AppRoutes.challenges),
+              child: Text(actionLabel),
             ),
           ],
         ),

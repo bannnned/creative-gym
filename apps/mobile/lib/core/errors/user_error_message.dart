@@ -1,7 +1,15 @@
 import 'package:creative_gym_mobile/core/errors/api_exception.dart';
+import 'package:dio/dio.dart';
 
 String userErrorMessage(Object? error) {
+  if (error is DioException && error.error != null) {
+    return userErrorMessage(error.error);
+  }
+
   if (error is ApiException) {
+    if (error.code == 'results_pending') {
+      return 'Итоги появятся после завершения голосования.';
+    }
     if (error.statusCode == 401 || error.statusCode == 403) {
       return 'Нужно войти в приложение ещё раз.';
     }

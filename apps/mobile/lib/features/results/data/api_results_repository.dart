@@ -1,6 +1,8 @@
+import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:creative_gym_mobile/core/network/api_client.dart';
 import 'package:creative_gym_mobile/features/results/domain/results_repository.dart';
 import 'package:creative_gym_mobile/features/results/domain/room_result.dart';
+import 'package:dio/dio.dart';
 
 class ApiResultsRepository implements ResultsRepository {
   const ApiResultsRepository(this._client);
@@ -9,7 +11,16 @@ class ApiResultsRepository implements ResultsRepository {
 
   @override
   Future<RoomResult?> getRoomResult(String roomId) async {
-    final json = await _client.getJson('/api/v1/rooms/$roomId/results');
+    final Map<String, dynamic> json;
+    try {
+      json = await _client.getJson('/api/v1/rooms/$roomId/results');
+    } on DioException catch (error) {
+      final wrapped = error.error;
+      if (wrapped is ApiException) {
+        throw wrapped;
+      }
+      throw ApiException(message: error.message ?? 'Request failed.');
+    }
     final result = json['result'];
     if (result is! Map<String, dynamic>) {
       return null;

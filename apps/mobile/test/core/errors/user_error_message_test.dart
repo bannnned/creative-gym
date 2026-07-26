@@ -1,5 +1,6 @@
 import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -19,5 +20,20 @@ void main() {
     );
 
     expect(message, 'Нужно войти в приложение ещё раз.');
+  });
+
+  test('explains pending results hidden inside a Dio error', () {
+    final message = userErrorMessage(
+      DioException(
+        requestOptions: RequestOptions(path: '/results'),
+        error: const ApiException(
+          code: 'results_pending',
+          statusCode: 409,
+          message: 'Results are not available yet.',
+        ),
+      ),
+    );
+
+    expect(message, 'Итоги появятся после завершения голосования.');
   });
 }
