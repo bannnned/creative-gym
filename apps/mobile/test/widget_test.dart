@@ -276,6 +276,14 @@ void main() {
       scrollable: find.byType(Scrollable),
     );
     expect(find.text('Посмотреть все работы'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('results-finish-button')),
+      180,
+      scrollable: find.byType(Scrollable),
+    );
+    expect(find.text('Ура!'), findsOneWidget);
+    expect(find.text('Готово'), findsNothing);
+    await tester.ensureVisible(find.text('Посмотреть все работы'));
 
     await tester.tap(find.text('Посмотреть все работы'));
     await tester.pumpAndSettle();

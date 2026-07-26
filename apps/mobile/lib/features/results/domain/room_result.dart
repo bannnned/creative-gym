@@ -16,6 +16,9 @@ class RoomResult {
   final String encouragementLabel;
   final ResultSubmission? currentUserSubmission;
   final List<ResultSubmission> rankedSubmissions;
+
+  String get outcomeActionLabel =>
+      currentUserSubmission?.isPrizeWinner == true ? 'Ура!' : 'Ну штош';
 }
 
 class ResultSubmission {
@@ -45,5 +48,6 @@ class ResultSubmission {
   final String mediaUrl;
   final bool isCurrentUser;
 
+  bool get isPrizeWinner => rank >= 1 && rank <= 3;
   String get scoreLabel => '$wins из $comparisons сравнений';
 }

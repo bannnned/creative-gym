@@ -213,7 +213,8 @@ class _ResultsContent extends StatelessWidget {
         ],
         const SizedBox(height: 18),
         GlassButton(
-          label: 'Готово',
+          key: const ValueKey('results-finish-button'),
+          label: result.outcomeActionLabel,
           onPressed: () => context.go(AppRoutes.challenges),
         ),
       ],
