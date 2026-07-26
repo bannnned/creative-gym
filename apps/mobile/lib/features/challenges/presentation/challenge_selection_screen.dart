@@ -28,6 +28,7 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
   final _challengeTargetKey = GlobalKey();
   bool _onboardingScheduled = false;
   bool _onboardingTargetActive = true;
+  int _onboardingTargetAttempts = 0;
 
   @override
   void initState() {
@@ -55,6 +56,7 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
     }
     _onboardingScheduled = false;
     _onboardingTargetActive = true;
+    _onboardingTargetAttempts = 0;
     setState(() {});
   }
 
@@ -74,6 +76,15 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
       return;
     }
     if (!mounted || _challengeTargetKey.currentContext == null) {
+      _onboardingScheduled = false;
+      if (mounted && _onboardingTargetAttempts < 3) {
+        _onboardingTargetAttempts++;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _scheduleOnboarding(workout);
+          }
+        });
+      }
       return;
     }
 
@@ -173,7 +184,8 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
           final activeSection = sections
               .where((section) => section.key == 'active')
               .firstOrNull;
-          final onboardingWorkout = activeSection?.workouts.firstOrNull;
+          final onboardingWorkout =
+              activeSection?.workouts.firstOrNull ?? workouts.firstOrNull;
           _scheduleOnboarding(onboardingWorkout);
           return AsyncContentTransition(
             stateKey: 'content',

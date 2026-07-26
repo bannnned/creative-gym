@@ -86,7 +86,6 @@ class AppDependencies {
       resolvedConfig.mode == DataSourceMode.mock
           ? MemoryOnboardingStateStore()
           : SecureOnboardingStateStore(),
-      enabledByDefault: resolvedConfig.mode != DataSourceMode.mock,
     );
     final auth = AuthRepository(
       apiClient,

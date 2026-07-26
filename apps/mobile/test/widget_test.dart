@@ -7,7 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  setUp(() => bootstrapApp(config: const AppConfig(mode: DataSourceMode.mock)));
+  setUp(() async {
+    bootstrapApp(config: const AppConfig(mode: DataSourceMode.mock));
+    await appDependencies.onboarding.setEnabled(false);
+  });
 
   Future<void> openChallenges(WidgetTester tester) async {
     await tester.pumpWidget(const CreativeGymApp());

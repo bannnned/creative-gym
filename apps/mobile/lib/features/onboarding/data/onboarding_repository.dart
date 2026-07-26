@@ -23,7 +23,7 @@ class OnboardingProgress {
   final bool detailsSeen;
   final bool dismissed;
 
-  bool get isEnabled => !dismissed && !detailsSeen;
+  bool get isEnabled => !dismissed && (!selectionSeen || !detailsSeen);
 
   Map<String, dynamic> toJson() => {
     'version': OnboardingRepository.currentVersion,
@@ -92,7 +92,9 @@ class MemoryOnboardingStateStore implements OnboardingStateStore {
 class OnboardingRepository {
   OnboardingRepository(this._store, {this.enabledByDefault = true});
 
-  static const currentVersion = 1;
+  // Version 1 could be stored before the list target became available.
+  // Reset it once so every existing installation receives the fixed tour.
+  static const currentVersion = 2;
 
   final OnboardingStateStore _store;
   final bool enabledByDefault;
@@ -129,14 +131,14 @@ class OnboardingRepository {
 
   Future<bool> shouldShowSelection() async {
     final progress = await load();
-    return !progress.dismissed &&
-        !progress.detailsSeen &&
-        !progress.selectionSeen;
+    return !progress.dismissed && !progress.selectionSeen;
   }
 
   Future<bool> shouldShowDetails() async {
     final progress = await load();
-    return !progress.dismissed && !progress.detailsSeen;
+    return !progress.dismissed &&
+        progress.selectionSeen &&
+        !progress.detailsSeen;
   }
 
   Future<bool> isEnabled() async => (await load()).isEnabled;
