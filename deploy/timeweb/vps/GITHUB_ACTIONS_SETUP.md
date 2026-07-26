@@ -59,6 +59,9 @@ systemctl status creative-gym-deploy.service --no-pager
 journalctl -u creative-gym-deploy.service -n 150 --no-pager
 ```
 
+PostgreSQL backup installation and restore verification are documented in
+`deploy/timeweb/vps/BACKUP_SETUP.md`.
+
 Verify the public version:
 
 ```bash

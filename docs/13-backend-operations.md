@@ -77,6 +77,10 @@ application on a physical Android device.
 On 2026-07-26, both the API container and the public domain reported the exact
 production commit through `GET /versionz`.
 
+The API image now includes a Docker healthcheck against `/readyz`. Deployment
+waits for both the endpoint and Docker's `healthy` state before switching
+Caddy.
+
 ## Automatic Deployment
 
 The VPS runs `creative-gym-deploy.timer` once per minute. The timer starts
@@ -256,6 +260,34 @@ systemctl status creative-gym-deploy.service --no-pager
 journalctl -u creative-gym-deploy.service -n 150 --no-pager
 ```
 
+## PostgreSQL Backups
+
+`creative-gym-backup.timer` creates a daily custom-format PostgreSQL dump,
+performs a real restore into a temporary database, uploads the dump to the
+private Timeweb S3 bucket, and verifies the downloaded object checksum.
+
+```text
+Local retention: 14 days
+Local directory: /var/backups/creative-gym/postgres
+S3 prefix:        database-backups/postgres/
+Schedule:         about 03:20-03:30 Moscow time
+```
+
+S3 copies are retained until the bucket lifecycle removes them. Configure a
+90-day lifecycle for the database backup prefix after verifying the first
+upload.
+
+Inspect backup state:
+
+```bash
+systemctl status creative-gym-backup.timer --no-pager
+systemctl status creative-gym-backup.service --no-pager
+journalctl -u creative-gym-backup.service -n 200 --no-pager
+```
+
+The full installation, restore-check, and S3 recovery runbook is
+`deploy/timeweb/vps/BACKUP_SETUP.md`.
+
 ## Known Issues And Follow-Ups
 
 ### Intermittent External TCP Connection
@@ -280,8 +312,7 @@ Do not treat a larger Flutter connect timeout as the primary fix.
 ### Operational Hardening
 
 - Install and verify the VPS systemd deployment timer.
-- Add a Docker healthcheck for the API container.
 - Decide whether to configure a small swap file on the 4 GiB VPS.
-- Configure and verify PostgreSQL backups outside the live Docker volume.
-- Verify the restore procedure before inviting external testers.
+- Install the PostgreSQL backup timer and verify the first local/S3 backup.
+- Configure a 90-day S3 lifecycle for `database-backups/postgres/`.
 - Replace dev-user header authentication with OAuth-backed sessions.

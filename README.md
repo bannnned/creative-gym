@@ -38,6 +38,7 @@ submissions.
 - [Backend Deploy Plan](docs/11-backend-deploy-plan.md) - first Timeweb deployment shape and cost tradeoffs.
 - [React PWA Plan](docs/12-react-pwa-plan.md) - archived web frontend direction, kept as historical reference.
 - [Backend Operations](docs/13-backend-operations.md) - current Timeweb VPS topology, verified state, health checks, and runbooks.
+- [PostgreSQL Backup Setup](deploy/timeweb/vps/BACKUP_SETUP.md) - daily local/S3 backups and restore verification.
 - [Simple UX Plan](docs/14-simple-ux-plan.md) - active minimal-interface direction for the Flutter app.
 
 ## North Star

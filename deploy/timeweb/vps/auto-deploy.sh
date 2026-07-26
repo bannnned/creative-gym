@@ -95,6 +95,26 @@ if [ "$ready" != true ]; then
   exit 1
 fi
 
+healthy=false
+for attempt in $(seq 1 30); do
+  health_status="$(
+    docker compose -f "$compose_file" ps -q api |
+      xargs docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}'
+  )"
+  if [ "$health_status" = "healthy" ]; then
+    healthy=true
+    break
+  fi
+  sleep 2
+done
+
+if [ "$healthy" != true ]; then
+  echo "API Docker healthcheck did not become healthy: ${health_status:-missing}"
+  docker compose -f "$compose_file" ps
+  docker compose -f "$compose_file" logs --tail 150 api
+  exit 1
+fi
+
 internal_version="$(
   docker compose -f "$compose_file" exec -T api \
     wget -qO- http://127.0.0.1:8080/versionz

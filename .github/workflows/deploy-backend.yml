@@ -38,6 +38,22 @@ jobs:
         working-directory: apps/api
         run: go test ./...
 
+      - name: Validate VPS scripts
+        run: |
+          bash -n deploy/timeweb/vps/auto-deploy.sh
+          bash -n deploy/timeweb/vps/backup-postgres.sh
+          bash -n deploy/timeweb/vps/restore-check.sh
+
+      - name: Build API image
+        run: |
+          docker build \
+            --build-arg BUILD_SHA="$GITHUB_SHA" \
+            --tag creative-gym-api:test \
+            apps/api
+          docker image inspect creative-gym-api:test \
+            --format '{{json .Config.Healthcheck}}' |
+            grep -q '/readyz'
+
   verify:
     name: Verify Timeweb VPS deployment
     needs: test
