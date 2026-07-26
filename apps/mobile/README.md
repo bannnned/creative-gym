@@ -41,8 +41,11 @@ Current state:
   in place later.
 - A small profile action unlocks server-verified admin access. Admins can
   create, edit, phase-switch, archive, and change covers for challenges.
-- Debug builds expose a confirmed "new test account" action in the own profile
-  so one device can submit several independent QA participants.
+- Debug builds expose a secure switcher for the administrator and up to eight
+  local QA participants.
+  Only the currently authenticated administrator can create another
+  participant; saved accounts can be switched without losing their sessions,
+  and inactive test entries can be forgotten from the device.
 
 The active interface rules are documented in
 `../../docs/14-simple-ux-plan.md`.

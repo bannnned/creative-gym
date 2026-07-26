@@ -131,20 +131,25 @@ void main() {
     expect(find.text('Режим автора'), findsNothing);
   });
 
-  testWidgets('debug profile action starts a fresh test participant', (
+  testWidgets('debug account switcher blocks creation for non-admins', (
     tester,
   ) async {
     await openChallenges(tester);
     await tester.tap(find.byKey(const ValueKey('profile-button')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('new-test-account-button')));
-    await tester.pumpAndSettle();
-    expect(find.text('Новый тестовый аккаунт?'), findsOneWidget);
-    await tester.tap(find.text('Создать'));
+    await tester.tap(
+      find.byKey(const ValueKey('test-account-switcher-button')),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('challenge-list')), findsOneWidget);
+    expect(find.text('Тестовые аккаунты'), findsOneWidget);
+    expect(find.text('1/8'), findsOneWidget);
+    expect(find.textContaining('только администратор'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('create-test-account-button')),
+      findsNothing,
+    );
   });
 
   testWidgets('rules stay behind a secondary action', (tester) async {

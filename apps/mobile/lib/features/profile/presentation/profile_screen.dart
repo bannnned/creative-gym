@@ -3,6 +3,8 @@ import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
+import 'package:creative_gym_mobile/features/auth/data/auth_repository.dart';
+import 'package:creative_gym_mobile/features/auth/domain/test_account.dart';
 import 'package:creative_gym_mobile/features/profile/domain/profile_data.dart';
 import 'package:creative_gym_mobile/features/profile/presentation/widgets/crown_icon.dart';
 import 'package:creative_gym_mobile/features/profile/presentation/widgets/profile_work_artwork.dart';
@@ -105,34 +107,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _startNewTestAccount() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Новый тестовый аккаунт?'),
-        content: const Text(
-          'Текущая работа останется на сервере, но приложение переключится '
-          'на нового участника.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Создать'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) {
-      return;
-    }
-
+  Future<void> _openTestAccounts() async {
     try {
-      await appDependencies.auth.startNewGuestSession();
-      if (mounted) {
+      final isAdmin = await appDependencies.admin.isAdmin();
+      final accounts = await appDependencies.auth.getTestAccounts(
+        currentIsAdmin: isAdmin,
+      );
+      if (!mounted) {
+        return;
+      }
+      final sessionChanged = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) =>
+            _TestAccountSwitcher(initialAccounts: accounts, canCreate: isAdmin),
+      );
+      if (sessionChanged == true && mounted) {
         context.go(AppRoutes.challenges);
       }
     } catch (error) {
@@ -154,10 +145,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? [
               if (kDebugMode)
                 AppGlassHeaderAction(
-                  key: const ValueKey('new-test-account-button'),
-                  icon: Icons.person_add_alt_1_rounded,
-                  semanticLabel: 'Новый тестовый аккаунт',
-                  onPressed: _startNewTestAccount,
+                  key: const ValueKey('test-account-switcher-button'),
+                  icon: Icons.group_outlined,
+                  semanticLabel: 'Тестовые аккаунты',
+                  onPressed: _openTestAccounts,
                 ),
               AppGlassHeaderAction(
                 key: const ValueKey('admin-menu-button'),
@@ -195,6 +186,247 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onWinnersChanged: (value) => setState(() => _winnersOnly = value),
           );
         },
+      ),
+    );
+  }
+}
+
+class _TestAccountSwitcher extends StatefulWidget {
+  const _TestAccountSwitcher({
+    required this.initialAccounts,
+    required this.canCreate,
+  });
+
+  final List<TestAccount> initialAccounts;
+  final bool canCreate;
+
+  @override
+  State<_TestAccountSwitcher> createState() => _TestAccountSwitcherState();
+}
+
+class _TestAccountSwitcherState extends State<_TestAccountSwitcher> {
+  late List<TestAccount> _accounts;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _accounts = widget.initialAccounts;
+  }
+
+  Future<void> _create() async {
+    if (_busy ||
+        !widget.canCreate ||
+        _accounts.where((account) => !account.isAdmin).length >=
+            AuthRepository.maxTestAccounts) {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await appDependencies.auth.createTestAccount();
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _switchTo(TestAccount account) async {
+    if (_busy || account.isCurrent) {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await appDependencies.auth.switchTestAccount(account.userId);
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _remove(TestAccount account) async {
+    if (_busy || account.isCurrent || account.isAdmin) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Удалить ${account.label}?'),
+        content: const Text(
+          'Аккаунт исчезнет из переключателя. Его работы останутся на сервере.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      final accounts = await appDependencies.auth.removeTestAccount(
+        account.userId,
+      );
+      if (mounted) {
+        setState(() => _accounts = accounts);
+      }
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  void _showError(Object error) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final testAccountCount = _accounts
+        .where((account) => !account.isAdmin)
+        .length;
+    final atLimit = testAccountCount >= AuthRepository.maxTestAccounts;
+    return SafeArea(
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+        ),
+        decoration: const BoxDecoration(
+          color: Color(0xFFF7F6F1),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceStroke,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Text(
+                  'Тестовые аккаунты',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '$testAccountCount/${AuthRepository.maxTestAccounts}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppTheme.mutedInk),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _accounts.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final account = _accounts[index];
+                  return ListTile(
+                    key: ValueKey('test-account-${account.userId}'),
+                    contentPadding: EdgeInsets.zero,
+                    enabled: !_busy,
+                    onTap: account.isCurrent ? null : () => _switchTo(account),
+                    leading: Icon(
+                      account.isAdmin
+                          ? Icons.shield_outlined
+                          : Icons.person_outline_rounded,
+                      color: account.isCurrent
+                          ? AppTheme.primaryDark
+                          : AppTheme.mutedInk,
+                    ),
+                    title: Text(
+                      account.label,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: Text(
+                      account.isCurrent
+                          ? 'Текущий аккаунт'
+                          : account.isAdmin
+                          ? 'Администратор'
+                          : 'Нажмите, чтобы переключиться',
+                    ),
+                    trailing: account.isCurrent
+                        ? const Icon(
+                            Icons.check_rounded,
+                            color: AppTheme.primaryDark,
+                          )
+                        : account.isAdmin
+                        ? null
+                        : IconButton(
+                            key: ValueKey(
+                              'remove-test-account-${account.userId}',
+                            ),
+                            tooltip: 'Удалить из переключателя',
+                            onPressed: _busy ? null : () => _remove(account),
+                            icon: const Icon(Icons.delete_outline_rounded),
+                          ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (widget.canCreate)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  key: const ValueKey('create-test-account-button'),
+                  onPressed: _busy || atLimit ? null : _create,
+                  icon: const Icon(Icons.person_add_alt_1_rounded),
+                  label: Text(atLimit ? 'Достигнут лимит 8' : 'Новый участник'),
+                ),
+              )
+            else
+              Text(
+                'Новых участников может создавать только администратор. '
+                'Переключитесь на него.',
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.mutedInk),
+              ),
+          ],
+        ),
       ),
     );
   }

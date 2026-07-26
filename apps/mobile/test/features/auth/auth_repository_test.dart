@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:creative_gym_mobile/core/auth/auth_session_store.dart';
 import 'package:creative_gym_mobile/core/config/app_config.dart';
+import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:creative_gym_mobile/core/network/api_client.dart';
 import 'package:creative_gym_mobile/features/auth/data/auth_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,25 +80,92 @@ void main() {
     await requestsHandled.future;
   });
 
-  test('starts a new guest without sending the previous session', () async {
+  test(
+    'admin creates, switches, and removes a protected test account',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      final handled = Completer<void>();
+      var requestCount = 0;
+
+      server.listen((request) async {
+        requestCount++;
+        expect(request.headers.value('Authorization'), 'Bearer admin-token');
+        request.response.headers.contentType = ContentType.json;
+        switch ('${request.method} ${request.uri.path}') {
+          case 'GET /api/v1/admin/status':
+            request.response.write(jsonEncode({'is_admin': true}));
+          case 'GET /api/v1/auth/me':
+            request.response.write(
+              jsonEncode({
+                'user': {'id': 'admin-user'},
+              }),
+            );
+          case 'POST /api/v1/auth/guest':
+            request.response
+              ..statusCode = HttpStatus.created
+              ..write(
+                jsonEncode({
+                  'token': 'test-session-token',
+                  'user': {'id': 'test-user'},
+                }),
+              );
+        }
+        await request.response.close();
+        if (requestCount == 3 && !handled.isCompleted) {
+          handled.complete();
+        }
+      });
+
+      final sessionStore = MemoryAuthSessionStore();
+      await sessionStore.writeToken('admin-token');
+      final repository = AuthRepository(
+        ApiClient(
+          AppConfig(
+            mode: DataSourceMode.api,
+            apiBaseUrl: 'http://127.0.0.1:${server.port}',
+          ),
+          sessionStore,
+        ),
+        sessionStore,
+        true,
+      );
+
+      final created = await repository.createTestAccount();
+      expect(created, hasLength(2));
+      expect(
+        created.singleWhere((account) => account.isAdmin).label,
+        'Администратор',
+      );
+      expect(
+        created.singleWhere((account) => account.isCurrent).userId,
+        'test-user',
+      );
+      expect(await sessionStore.readToken(), 'test-session-token');
+
+      await repository.switchTestAccount('admin-user');
+      expect(await sessionStore.readToken(), 'admin-token');
+      final remaining = await repository.removeTestAccount('test-user');
+      expect(remaining, hasLength(1));
+      expect(remaining.single.isAdmin, isTrue);
+      await handled.future;
+    },
+  );
+
+  test('non-admin cannot create a test account', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));
-    final handled = Completer<void>();
 
     server.listen((request) async {
-      expect(request.method, 'POST');
-      expect(request.uri.path, '/api/v1/auth/guest');
-      expect(request.headers.value('Authorization'), isNull);
+      expect(request.uri.path, '/api/v1/admin/status');
       request.response
-        ..statusCode = HttpStatus.created
         ..headers.contentType = ContentType.json
-        ..write(jsonEncode({'token': 'new-session-token'}));
+        ..write(jsonEncode({'is_admin': false}));
       await request.response.close();
-      handled.complete();
     });
 
     final sessionStore = MemoryAuthSessionStore();
-    await sessionStore.writeToken('old-session-token');
+    await sessionStore.writeToken('regular-token');
     final repository = AuthRepository(
       ApiClient(
         AppConfig(
@@ -110,9 +178,68 @@ void main() {
       true,
     );
 
-    await repository.startNewGuestSession();
+    await expectLater(
+      repository.createTestAccount(),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.code,
+          'code',
+          'admin_required',
+        ),
+      ),
+    );
+  });
 
-    expect(await sessionStore.readToken(), 'new-session-token');
-    await handled.future;
+  test('admin cannot save more than eight test participants', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+
+    server.listen((request) async {
+      expect(request.uri.path, '/api/v1/admin/status');
+      request.response
+        ..headers.contentType = ContentType.json
+        ..write(jsonEncode({'is_admin': true}));
+      await request.response.close();
+    });
+
+    final sessionStore = MemoryAuthSessionStore();
+    await sessionStore.writeToken('admin-token');
+    await sessionStore.writeTestAccounts([
+      const StoredTestAccount(
+        userId: 'admin-user',
+        token: 'admin-token',
+        label: 'Администратор',
+        isAdmin: true,
+      ),
+      for (var index = 1; index <= 8; index++)
+        StoredTestAccount(
+          userId: 'test-user-$index',
+          token: 'test-token-$index',
+          label: 'Участник $index',
+          isAdmin: false,
+        ),
+    ]);
+    final repository = AuthRepository(
+      ApiClient(
+        AppConfig(
+          mode: DataSourceMode.api,
+          apiBaseUrl: 'http://127.0.0.1:${server.port}',
+        ),
+        sessionStore,
+      ),
+      sessionStore,
+      true,
+    );
+
+    await expectLater(
+      repository.createTestAccount(),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.code,
+          'code',
+          'test_account_limit',
+        ),
+      ),
+    );
   });
 }
