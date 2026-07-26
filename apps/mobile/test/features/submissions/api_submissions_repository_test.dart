@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:creative_gym_mobile/core/config/app_config.dart';
 import 'package:creative_gym_mobile/core/network/api_client.dart';
+import 'package:creative_gym_mobile/features/media/data/api_media_repository.dart';
 import 'package:creative_gym_mobile/features/submissions/data/api_submissions_repository.dart';
 import 'package:creative_gym_mobile/features/submissions/data/mock_photo_data.dart';
 import 'package:creative_gym_mobile/features/submissions/domain/selected_photo.dart';
@@ -19,7 +20,7 @@ void main() {
       const devUserId = '00000000-0000-0000-0000-000000000001';
       final seenMethods = <String>[];
       final requestHandled = Completer<void>();
-      var remainingRequests = 3;
+      var remainingRequests = 2;
 
       server.listen((request) async {
         seenMethods.add('${request.method} ${request.uri.path}');
@@ -74,7 +75,10 @@ void main() {
           devUserId: devUserId,
         ),
       );
-      final repository = ApiSubmissionsRepository(client);
+      final repository = ApiSubmissionsRepository(
+        client,
+        ApiMediaRepository(client),
+      );
       final submission = await repository.upload(
         'room-1',
         SelectedPhoto(fileName: 'photo.png', bytes: mockPhotoBytes()),
@@ -87,7 +91,6 @@ void main() {
 
       expect(seenMethods, [
         'POST /api/v1/rooms/room-1/submissions',
-        'GET /api/v1/submissions/submission-1/media',
         'DELETE /api/v1/submissions/submission-1',
       ]);
     },

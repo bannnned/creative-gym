@@ -73,10 +73,12 @@ class AppDependencies {
       DataSourceMode.apiWithMockFallback => SecureAuthSessionStore(),
     };
     final apiClient = ApiClient(resolvedConfig, sessionStore);
+    final apiMedia = ApiMediaRepository(apiClient);
     final auth = AuthRepository(
       apiClient,
       sessionStore,
       resolvedConfig.mode != DataSourceMode.mock,
+      onSessionChanged: apiMedia.clear,
     );
     final admin = switch (resolvedConfig.mode) {
       DataSourceMode.mock => const DisabledAdminRepository(),
@@ -88,7 +90,7 @@ class AppDependencies {
     final mockRooms = const MockRoomsRepository();
     final apiRooms = ApiRoomsRepository(apiClient);
     final mockSubmissions = MockSubmissionsRepository();
-    final apiSubmissions = ApiSubmissionsRepository(apiClient);
+    final apiSubmissions = ApiSubmissionsRepository(apiClient, apiMedia);
     final mockVoting = MockVotingRepository();
     final apiVoting = ApiVotingRepository(apiClient);
     const mockResults = MockResultsRepository();
@@ -140,8 +142,7 @@ class AppDependencies {
     };
     final media = switch (resolvedConfig.mode) {
       DataSourceMode.mock => const MockMediaRepository(),
-      DataSourceMode.api ||
-      DataSourceMode.apiWithMockFallback => ApiMediaRepository(apiClient),
+      DataSourceMode.api || DataSourceMode.apiWithMockFallback => apiMedia,
     };
 
     return AppDependencies(

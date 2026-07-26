@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:creative_gym_mobile/app/app_motion.dart';
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
@@ -12,6 +13,7 @@ import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 class UploadSubmissionScreen extends StatefulWidget {
@@ -84,42 +86,60 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
         future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel(message: 'Загружаем фото...');
+            return const AsyncContentTransition(
+              stateKey: 'loading',
+              child: AsyncLoadingPanel(
+                message: 'Загружаем фото...',
+                layout: AsyncLoadingLayout.photo,
+              ),
+            );
           }
           if (snapshot.hasError) {
-            return AsyncErrorPanel(
-              message: userErrorMessage(snapshot.error),
-              onRetry: _reload,
+            return AsyncContentTransition(
+              stateKey: 'error',
+              child: AsyncErrorPanel(
+                message: userErrorMessage(snapshot.error),
+                onRetry: _reload,
+              ),
             );
           }
 
           final room = _room;
           if (room == null) {
-            return const _SimpleState(
-              title: 'Задание не найдено',
-              message: 'Вернитесь к текущему заданию.',
+            return const AsyncContentTransition(
+              stateKey: 'missing',
+              child: _SimpleState(
+                title: 'Задание не найдено',
+                message: 'Вернитесь к текущему заданию.',
+              ),
             );
           }
           if (!room.canUpload) {
-            return _SimpleState(
-              title: 'Приём фотографий завершён',
-              message: room.deadlineLabel,
+            return AsyncContentTransition(
+              stateKey: 'locked',
+              child: _SimpleState(
+                title: 'Приём фотографий завершён',
+                message: room.deadlineLabel,
+              ),
             );
           }
 
-          return _PhotoContent(
-            room: room,
-            submission: _submission,
-            selectedPhoto: _selectedPhoto,
-            uploadedPhotoBytes: _uploadedPhotoBytes,
-            mediaLoadFailed: _mediaLoadFailed,
-            isBusy: _isBusy,
-            uploadProgress: _uploadProgress,
-            onPick: _pickPhoto,
-            onUpload: _uploadPhoto,
-            onCancel: () => setState(() => _selectedPhoto = null),
-            onDelete: _confirmDelete,
-            onReloadMedia: _reloadUploadedMedia,
+          return AsyncContentTransition(
+            stateKey: 'content',
+            child: _PhotoContent(
+              room: room,
+              submission: _submission,
+              selectedPhoto: _selectedPhoto,
+              uploadedPhotoBytes: _uploadedPhotoBytes,
+              mediaLoadFailed: _mediaLoadFailed,
+              isBusy: _isBusy,
+              uploadProgress: _uploadProgress,
+              onPick: _pickPhoto,
+              onUpload: _uploadPhoto,
+              onCancel: () => setState(() => _selectedPhoto = null),
+              onDelete: _confirmDelete,
+              onReloadMedia: _reloadUploadedMedia,
+            ),
           );
         },
       ),
@@ -164,22 +184,14 @@ class _UploadSubmissionScreenState extends State<UploadSubmissionScreen> {
         },
       );
 
-      Uint8List? bytes;
-      var mediaLoadFailed = false;
-      try {
-        bytes = await appDependencies.submissions.loadMedia(submission);
-      } catch (_) {
-        mediaLoadFailed = true;
-      }
-
       if (!mounted) {
         return;
       }
       setState(() {
         _submission = submission;
         _selectedPhoto = null;
-        _uploadedPhotoBytes = bytes;
-        _mediaLoadFailed = mediaLoadFailed;
+        _uploadedPhotoBytes = photo.bytes;
+        _mediaLoadFailed = false;
         _isBusy = false;
         _uploadProgress = null;
       });
@@ -321,6 +333,11 @@ class _PhotoContent extends StatelessWidget {
     final previewBytes = selectedPhoto?.bytes ?? uploadedPhotoBytes;
     final hasUploadedPhoto = submission != null;
     final hasSelection = selectedPhoto != null;
+    final statusLabel = hasSelection
+        ? 'Фото выбрано'
+        : hasUploadedPhoto
+        ? 'Фото принято'
+        : 'Добавьте одну фотографию';
 
     return AbsorbPointer(
       absorbing: isBusy,
@@ -342,28 +359,42 @@ class _PhotoContent extends StatelessWidget {
             ).textTheme.bodyMedium?.copyWith(color: AppTheme.mutedInk),
           ),
           const SizedBox(height: 24),
-          _PhotoPreview(bytes: previewBytes),
-          if (isBusy) ...[
-            const SizedBox(height: 16),
-            LinearProgressIndicator(value: uploadProgress),
-            const SizedBox(height: 8),
-            Text(
-              uploadProgress == null
-                  ? 'Обновляем...'
-                  : 'Загружаем ${(uploadProgress! * 100).clamp(0, 100).round()}%',
-              textAlign: TextAlign.center,
-            ),
-          ],
+          _PhotoPreview(
+            bytes: previewBytes,
+            isBusy: isBusy,
+            uploadProgress: uploadProgress,
+          ),
           const SizedBox(height: 20),
           Row(
+            key: ValueKey('photo-status-$statusLabel'),
             children: [
+              if (hasUploadedPhoto && !hasSelection) ...[
+                const Icon(
+                      Icons.check_circle_rounded,
+                      size: 22,
+                      color: AppTheme.primaryDark,
+                    )
+                    .animate(key: const ValueKey('accepted-photo-check'))
+                    .fadeIn(
+                      duration: AppMotion.duration(
+                        context,
+                        AppMotion.standard,
+                      ),
+                    )
+                    .scaleXY(
+                      begin: 0.72,
+                      end: 1,
+                      duration: AppMotion.duration(
+                        context,
+                        AppMotion.expressive,
+                      ),
+                      curve: Curves.easeOutBack,
+                    ),
+                const SizedBox(width: 10),
+              ],
               Expanded(
                 child: Text(
-                  hasSelection
-                      ? 'Фото выбрано'
-                      : hasUploadedPhoto
-                      ? 'Фото принято'
-                      : 'Добавьте одну фотографию',
+                  statusLabel,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: AppTheme.ink,
                     fontWeight: FontWeight.w700,
@@ -383,7 +414,17 @@ class _PhotoContent extends StatelessWidget {
                   ],
                 ),
             ],
-          ),
+          )
+              .animate(key: ValueKey('photo-status-motion-$statusLabel'))
+              .fadeIn(
+                duration: AppMotion.duration(context, AppMotion.standard),
+              )
+              .slideY(
+                begin: 0.12,
+                end: 0,
+                duration: AppMotion.duration(context, AppMotion.standard),
+                curve: Curves.easeOutCubic,
+              ),
           if (mediaLoadFailed && !hasSelection) ...[
             const SizedBox(height: 8),
             TextButton(
@@ -415,35 +456,119 @@ class _PhotoContent extends StatelessWidget {
 }
 
 class _PhotoPreview extends StatelessWidget {
-  const _PhotoPreview({required this.bytes});
+  const _PhotoPreview({
+    required this.bytes,
+    required this.isBusy,
+    required this.uploadProgress,
+  });
 
   final Uint8List? bytes;
+  final bool isBusy;
+  final double? uploadProgress;
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = AppMotion.isReduced(context);
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppTheme.radiusL),
       child: AspectRatio(
         aspectRatio: 4 / 5,
-        child: bytes == null
-            ? ColoredBox(
-                color: const Color(0xFFE7ECE8),
-                child: const Center(
-                  child: Icon(
-                    Icons.add_photo_alternate_outlined,
-                    size: 42,
-                    color: AppTheme.mutedInk,
-                  ),
-                ),
-              )
-            : Image.memory(
-                bytes!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const ColoredBox(
-                  color: Color(0xFFE7ECE8),
-                  child: Center(child: Text('Не удалось показать фото')),
-                ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            AnimatedSwitcher(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 240),
+              switchInCurve: Curves.easeOutCubic,
+              child: bytes == null
+                  ? const ColoredBox(
+                      key: ValueKey('empty-photo-preview'),
+                      color: Color(0xFFE7ECE8),
+                      child: Center(
+                        child: Icon(
+                          Icons.add_photo_alternate_outlined,
+                          size: 42,
+                          color: AppTheme.mutedInk,
+                        ),
+                      ),
+                    )
+                  : Image.memory(
+                          bytes!,
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const ColoredBox(
+                                color: Color(0xFFE7ECE8),
+                                child: Center(
+                                  child: Text('Не удалось показать фото'),
+                                ),
+                              ),
+                        )
+                        .animate(key: ObjectKey(bytes))
+                        .fadeIn(
+                          duration: AppMotion.duration(
+                            context,
+                            AppMotion.expressive,
+                          ),
+                        )
+                        .blurXY(
+                          begin: reduceMotion ? 0 : 7,
+                          end: 0,
+                          duration: AppMotion.duration(
+                            context,
+                            AppMotion.expressive,
+                          ),
+                          curve: Curves.easeOutCubic,
+                        )
+                        .scaleXY(
+                          begin: reduceMotion ? 1 : 1.018,
+                          end: 1,
+                          duration: AppMotion.duration(
+                            context,
+                            AppMotion.expressive,
+                          ),
+                          curve: Curves.easeOutCubic,
+                        ),
+            ),
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: AnimatedSwitcher(
+                duration: AppMotion.duration(context, AppMotion.quick),
+                child: isBusy
+                    ? DecoratedBox(
+                        key: const ValueKey('photo-progress-overlay'),
+                        decoration: BoxDecoration(
+                          color: const Color(0xCCFFFFFF),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 10, 14, 9),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              LinearProgressIndicator(value: uploadProgress),
+                              const SizedBox(height: 6),
+                              Text(
+                                uploadProgress == null
+                                    ? 'Обновляем…'
+                                    : 'Загружаем ${(uploadProgress! * 100).clamp(0, 100).round()}%',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(
+                        key: ValueKey('photo-progress-idle'),
+                      ),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }

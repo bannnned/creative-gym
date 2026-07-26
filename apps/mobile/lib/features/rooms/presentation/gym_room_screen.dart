@@ -60,7 +60,10 @@ class _GymRoomScreenState extends State<GymRoomScreen> {
         future: _roomFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel(message: 'Загрузка Gym Room...');
+            return const AsyncLoadingPanel(
+              message: 'Загружаем задание...',
+              layout: AsyncLoadingLayout.detail,
+            );
           }
 
           if (snapshot.hasError) {

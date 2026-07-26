@@ -5,11 +5,17 @@ import 'package:creative_gym_mobile/features/auth/domain/test_account.dart';
 import 'package:dio/dio.dart';
 
 class AuthRepository {
-  AuthRepository(this._apiClient, this._sessionStore, this._usesRemoteAuth);
+  AuthRepository(
+    this._apiClient,
+    this._sessionStore,
+    this._usesRemoteAuth, {
+    this.onSessionChanged,
+  });
 
   final ApiClient _apiClient;
   final AuthSessionStore _sessionStore;
   final bool _usesRemoteAuth;
+  final void Function()? onSessionChanged;
 
   static const maxTestAccounts = 8;
 
@@ -30,6 +36,7 @@ class AuthRepository {
       final apiError = error.error;
       if (apiError is ApiException && apiError.statusCode == 401) {
         await _sessionStore.clear();
+        onSessionChanged?.call();
         return false;
       }
 
@@ -55,6 +62,7 @@ class AuthRepository {
       }
 
       await _sessionStore.writeToken(token);
+      onSessionChanged?.call();
     } on DioException catch (error) {
       final apiError = error.error;
       if (apiError is ApiException) {
@@ -164,6 +172,7 @@ class AuthRepository {
     ];
     await _sessionStore.writeTestAccounts(updated);
     await _sessionStore.writeToken(token);
+    onSessionChanged?.call();
     return _summaries(updated, token);
   }
 
@@ -177,6 +186,7 @@ class AuthRepository {
       );
     }
     await _sessionStore.writeToken(account.token);
+    onSessionChanged?.call();
   }
 
   Future<List<TestAccount>> removeTestAccount(String userId) async {

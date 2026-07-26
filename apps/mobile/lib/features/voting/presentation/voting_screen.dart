@@ -28,6 +28,7 @@ class _VotingScreenState extends State<VotingScreen> {
   int _votesCount = 0;
   String? _selectedSide;
   bool _isBusy = false;
+  bool _isAdvancing = false;
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _VotingScreenState extends State<VotingScreen> {
     VotePair? pair;
     if (room != null && (widget.demoMode || room.canVote)) {
       pair = await appDependencies.voting.getNextPair(widget.roomId);
+      await _warmPairMedia(pair);
     }
     _room = room;
     _pair = pair;
@@ -65,47 +67,69 @@ class _VotingScreenState extends State<VotingScreen> {
         future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel();
+            return const AsyncContentTransition(
+              stateKey: 'loading',
+              child: AsyncLoadingPanel(
+                message: 'Загружаем работы...',
+                layout: AsyncLoadingLayout.voting,
+              ),
+            );
           }
           if (snapshot.hasError) {
-            return AsyncErrorPanel(
-              message: userErrorMessage(snapshot.error),
-              onRetry: _reload,
+            return AsyncContentTransition(
+              stateKey: 'error',
+              child: AsyncErrorPanel(
+                message: userErrorMessage(snapshot.error),
+                onRetry: _reload,
+              ),
             );
           }
 
           final room = _room;
           if (room == null) {
-            return const _VotingState(
-              title: 'Задание не найдено',
-              message: 'Вернитесь к текущему заданию.',
+            return const AsyncContentTransition(
+              stateKey: 'missing',
+              child: _VotingState(
+                title: 'Задание не найдено',
+                message: 'Вернитесь к текущему заданию.',
+              ),
             );
           }
           if (!widget.demoMode && !room.canVote) {
-            return _VotingState(
-              title: 'Сравнение пока недоступно',
-              message: room.deadlineLabel,
+            return AsyncContentTransition(
+              stateKey: 'locked',
+              child: _VotingState(
+                title: 'Сравнение пока недоступно',
+                message: room.deadlineLabel,
+              ),
             );
           }
           final pair = _pair;
           if (pair == null) {
-            return _VotingComplete(
-              votesCount: _votesCount,
-              alreadyVoted: room.hasCompletedVoting || _votesCount > 0,
+            return AsyncContentTransition(
+              stateKey: 'complete',
+              child: _VotingComplete(
+                votesCount: _votesCount,
+                alreadyVoted: room.hasCompletedVoting || _votesCount > 0,
+              ),
             );
           }
 
-          return _VotingContent(
-            pair: pair,
-            current: pair.completed + 1,
-            total: pair.target,
-            selectedSide: _selectedSide,
-            isLocked: _isBusy,
-            onSelectLeft: () => _select('left'),
-            onSelectRight: () => _select('right'),
-            onNext: _submitVote,
-            onOpenFullscreen: (initialPage) =>
-                _openFullscreen(pair, initialPage),
+          return AsyncContentTransition(
+            stateKey: 'content',
+            child: _VotingContent(
+              pair: pair,
+              current: pair.completed + 1,
+              total: pair.target,
+              selectedSide: _selectedSide,
+              isLocked: _isBusy,
+              isAdvancing: _isAdvancing,
+              onSelectLeft: () => _select('left'),
+              onSelectRight: () => _select('right'),
+              onNext: _submitVote,
+              onOpenFullscreen: (initialPage) =>
+                  _openFullscreen(pair, initialPage),
+            ),
           );
         },
       ),
@@ -128,14 +152,20 @@ class _VotingScreenState extends State<VotingScreen> {
     final chosenSubmissionId = selectedSide == 'left'
         ? pair.leftSubmissionId
         : pair.rightSubmissionId;
-    setState(() => _isBusy = true);
+    setState(() {
+      _isBusy = true;
+      _isAdvancing = true;
+    });
+    var voteSaved = false;
     try {
       await appDependencies.voting.castVote(
         widget.roomId,
         pair,
         chosenSubmissionId,
       );
+      voteSaved = true;
       final nextPair = await appDependencies.voting.getNextPair(widget.roomId);
+      await _warmPairMedia(nextPair);
       if (!mounted) {
         return;
       }
@@ -144,19 +174,44 @@ class _VotingScreenState extends State<VotingScreen> {
         _pair = nextPair;
         _selectedSide = null;
         _isBusy = false;
+        _isAdvancing = false;
       });
     } catch (error) {
       if (!mounted) {
         return;
       }
       setState(() {
-        _selectedSide = null;
+        if (voteSaved) {
+          _votesCount++;
+          _selectedSide = null;
+          _loadFuture = _load();
+        }
         _isBusy = false;
+        _isAdvancing = false;
       });
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
     }
+  }
+
+  Future<void> _warmPairMedia(VotePair? pair) async {
+    if (pair == null) {
+      return;
+    }
+    final urls = [
+      pair.leftMediaUrl,
+      pair.rightMediaUrl,
+    ].where((url) => url.isNotEmpty).toSet();
+    await Future.wait(
+      urls.map((url) async {
+        try {
+          await appDependencies.media.load(url);
+        } catch (_) {
+          // The gradient remains usable if a private preview cannot be warmed.
+        }
+      }),
+    );
   }
 
   Future<void> _openFullscreen(VotePair pair, int initialPage) async {
@@ -176,6 +231,7 @@ class _VotingContent extends StatelessWidget {
     required this.total,
     required this.selectedSide,
     required this.isLocked,
+    required this.isAdvancing,
     required this.onSelectLeft,
     required this.onSelectRight,
     required this.onNext,
@@ -187,6 +243,7 @@ class _VotingContent extends StatelessWidget {
   final int total;
   final String? selectedSide;
   final bool isLocked;
+  final bool isAdvancing;
   final VoidCallback onSelectLeft;
   final VoidCallback onSelectRight;
   final VoidCallback onNext;
@@ -220,45 +277,71 @@ class _VotingContent extends StatelessWidget {
           Expanded(
             child: Align(
               alignment: Alignment.topCenter,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: AspectRatio(
-                      aspectRatio: 4 / 5,
-                      child: _PhotoChoice(
-                        semanticsLabel: pair.leftLabel,
-                        mediaUrl: pair.leftMediaUrl,
-                        palette: pair.leftPalette,
-                        selected: selectedSide == 'left',
-                        dimmed: selectedSide == 'right',
-                        onTap: isLocked ? null : onSelectLeft,
-                        onOpenFullscreen: () => onOpenFullscreen(0),
+              child: AnimatedSwitcher(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 240),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final scale = Tween<double>(
+                    begin: 0.985,
+                    end: 1,
+                  ).animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(scale: scale, child: child),
+                  );
+                },
+                child: isAdvancing
+                    ? const _AdvancingVotePair(
+                        key: ValueKey('advancing-vote-pair'),
+                      )
+                    : Row(
+                        key: ValueKey('vote-pair-${pair.id}'),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: AspectRatio(
+                              aspectRatio: 4 / 5,
+                              child: _PhotoChoice(
+                                semanticsLabel: pair.leftLabel,
+                                mediaUrl: pair.leftMediaUrl,
+                                palette: pair.leftPalette,
+                                selected: selectedSide == 'left',
+                                dimmed: selectedSide == 'right',
+                                onTap: isLocked ? null : onSelectLeft,
+                                onOpenFullscreen: () => onOpenFullscreen(0),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: AspectRatio(
+                              aspectRatio: 4 / 5,
+                              child: _PhotoChoice(
+                                semanticsLabel: pair.rightLabel,
+                                mediaUrl: pair.rightMediaUrl,
+                                palette: pair.rightPalette,
+                                selected: selectedSide == 'right',
+                                dimmed: selectedSide == 'left',
+                                onTap: isLocked ? null : onSelectRight,
+                                onOpenFullscreen: () => onOpenFullscreen(1),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: AspectRatio(
-                      aspectRatio: 4 / 5,
-                      child: _PhotoChoice(
-                        semanticsLabel: pair.rightLabel,
-                        mediaUrl: pair.rightMediaUrl,
-                        palette: pair.rightPalette,
-                        selected: selectedSide == 'right',
-                        dimmed: selectedSide == 'left',
-                        onTap: isLocked ? null : onSelectRight,
-                        onOpenFullscreen: () => onOpenFullscreen(1),
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
           const SizedBox(height: 10),
           Text(
-            selectedSide == null ? 'Выберите одну фотографию' : 'Выбор сделан',
+            isAdvancing
+                ? 'Готовим следующую пару'
+                : selectedSide == null
+                ? 'Выберите одну фотографию'
+                : 'Выбор сделан',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: selectedSide == null
@@ -275,13 +358,42 @@ class _VotingContent extends StatelessWidget {
               opacity: isLocked || selectedSide == null ? 0.42 : 1,
               child: GlassButton(
                 key: const ValueKey('submit-vote-button'),
-                label: isLocked ? 'Сохраняем...' : 'Далее',
+                label: isAdvancing ? 'Следующая пара…' : 'Далее',
                 onPressed: onNext,
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AdvancingVotePair extends StatelessWidget {
+  const _AdvancingVotePair({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(0xFFE3E8E3);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < 2; index++) ...[
+          if (index > 0) const SizedBox(width: 12),
+          Expanded(
+            child: AspectRatio(
+              aspectRatio: 4 / 5,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusL),
+                  border: Border.all(color: AppTheme.surfaceStroke),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

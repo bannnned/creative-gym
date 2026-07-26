@@ -84,30 +84,45 @@ class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
         future: _homeFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel(message: 'Загружаем задание...');
+            return const AsyncContentTransition(
+              stateKey: 'loading',
+              child: AsyncLoadingPanel(
+                message: 'Загружаем задание...',
+                layout: AsyncLoadingLayout.detail,
+              ),
+            );
           }
 
           if (snapshot.hasError) {
-            return AsyncErrorPanel(
-              message: userErrorMessage(snapshot.error),
-              onRetry: _reload,
+            return AsyncContentTransition(
+              stateKey: 'error',
+              child: AsyncErrorPanel(
+                message: userErrorMessage(snapshot.error),
+                onRetry: _reload,
+              ),
             );
           }
 
           final data = snapshot.data ?? const _HomeData();
           if (data.workout == null) {
-            return _EmptyHome(onRetry: _reload);
+            return AsyncContentTransition(
+              stateKey: 'empty',
+              child: _EmptyHome(onRetry: _reload),
+            );
           }
 
-          return _HomeContent(
-            data: data,
-            isJoining: _isJoining,
-            onPrimaryAction: () => _handlePrimaryAction(data),
-            onShowRules: () => _showRules(data.workout!),
-            onChangeCover: data.workout!.viewerCanEdit
-                ? () => _changeCover(data.workout!)
-                : null,
-            isUploadingCover: _isUploadingCover,
+          return AsyncContentTransition(
+            stateKey: 'content',
+            child: _HomeContent(
+              data: data,
+              isJoining: _isJoining,
+              onPrimaryAction: () => _handlePrimaryAction(data),
+              onShowRules: () => _showRules(data.workout!),
+              onChangeCover: data.workout!.viewerCanEdit
+                  ? () => _changeCover(data.workout!)
+                  : null,
+              isUploadingCover: _isUploadingCover,
+            ),
           );
         },
       ),

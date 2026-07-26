@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:creative_gym_mobile/app/app_motion.dart';
 import 'package:creative_gym_mobile/app/app_router.dart';
 import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
@@ -8,6 +9,7 @@ import 'package:creative_gym_mobile/features/challenges/domain/weekly_workout.da
 import 'package:creative_gym_mobile/shared/widgets/app_glass_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 
 class ChallengeSelectionScreen extends StatefulWidget {
@@ -55,54 +57,71 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
       body: FutureBuilder<List<WeeklyWorkout>>(
         future: _workoutsFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel(message: 'Загружаем челленджи...');
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
+            return const AsyncContentTransition(
+              stateKey: 'loading',
+              child: AsyncLoadingPanel(
+                message: 'Загружаем челленджи...',
+                layout: AsyncLoadingLayout.list,
+              ),
+            );
           }
 
           if (snapshot.hasError) {
-            return AsyncErrorPanel(
-              message: userErrorMessage(snapshot.error),
-              onRetry: _reload,
+            return AsyncContentTransition(
+              stateKey: 'error',
+              child: AsyncErrorPanel(
+                message: userErrorMessage(snapshot.error),
+                onRetry: _reload,
+              ),
             );
           }
 
           final workouts = snapshot.data ?? const [];
           if (workouts.isEmpty) {
-            return _EmptyChallenges(onRetry: _reload);
+            return AsyncContentTransition(
+              stateKey: 'empty',
+              child: _EmptyChallenges(onRetry: _reload),
+            );
           }
 
           final sections = _sectionsFor(workouts);
-          return RefreshIndicator(
-            onRefresh: () async {
-              _reload();
-              await _workoutsFuture;
-            },
-            child: ListView(
-              key: const ValueKey('challenge-list'),
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-              children: [
-                for (final section in sections) ...[
-                  Padding(
-                    key: ValueKey('challenge-section-${section.key}'),
-                    padding: const EdgeInsets.only(top: 6, bottom: 12),
-                    child: Text(
-                      section.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.ink,
-                        fontWeight: FontWeight.w800,
+          return AsyncContentTransition(
+            stateKey: 'content',
+            child: RefreshIndicator(
+              onRefresh: () async {
+                _reload();
+                await _workoutsFuture;
+              },
+              child: ListView(
+                key: const ValueKey('challenge-list'),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                children: [
+                  for (final section in sections) ...[
+                    Padding(
+                      key: ValueKey('challenge-section-${section.key}'),
+                      padding: const EdgeInsets.only(top: 6, bottom: 12),
+                      child: Text(
+                        section.title,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: AppTheme.ink,
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
                     ),
-                  ),
-                  for (final workout in section.workouts) ...[
-                    _ChallengeCard(
-                      workout: workout,
-                      paletteIndex: workouts.indexOf(workout),
-                      onTap: () => _openChallenge(workout),
-                    ),
-                    const SizedBox(height: 16),
+                    for (final workout in section.workouts) ...[
+                      _ChallengeCard(
+                        workout: workout,
+                        paletteIndex: workouts.indexOf(workout),
+                        onTap: () => _openChallenge(workout),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ],
                 ],
-              ],
+              ),
             ),
           );
         },
@@ -283,7 +302,20 @@ class _ChallengeCardState extends State<_ChallengeCard> {
           ),
         ),
       ),
-    );
+    )
+        .animate(
+          delay: AppMotion.delay(
+            context,
+            Duration(milliseconds: widget.paletteIndex * 45),
+          ),
+        )
+        .fadeIn(duration: AppMotion.duration(context, AppMotion.standard))
+        .slideY(
+          begin: 0.035,
+          end: 0,
+          duration: AppMotion.duration(context, AppMotion.standard),
+          curve: Curves.easeOutCubic,
+        );
   }
 }
 

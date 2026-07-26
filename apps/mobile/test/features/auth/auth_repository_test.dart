@@ -119,6 +119,7 @@ void main() {
 
       final sessionStore = MemoryAuthSessionStore();
       await sessionStore.writeToken('admin-token');
+      var sessionChanges = 0;
       final repository = AuthRepository(
         ApiClient(
           AppConfig(
@@ -129,6 +130,7 @@ void main() {
         ),
         sessionStore,
         true,
+        onSessionChanged: () => sessionChanges++,
       );
 
       final created = await repository.createTestAccount();
@@ -142,9 +144,11 @@ void main() {
         'test-user',
       );
       expect(await sessionStore.readToken(), 'test-session-token');
+      expect(sessionChanges, 1);
 
       await repository.switchTestAccount('admin-user');
       expect(await sessionStore.readToken(), 'admin-token');
+      expect(sessionChanges, 2);
       final remaining = await repository.removeTestAccount('test-user');
       expect(remaining, hasLength(1));
       expect(remaining.single.isAdmin, isTrue);

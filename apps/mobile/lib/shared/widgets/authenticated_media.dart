@@ -52,14 +52,25 @@ class _AuthenticatedMediaState extends State<AuthenticatedMedia> {
       future: future,
       builder: (context, snapshot) {
         final bytes = snapshot.data;
-        if (bytes == null || bytes.isEmpty) {
-          return widget.fallback;
-        }
-        return Image.memory(
-          bytes,
-          fit: widget.fit,
-          gaplessPlayback: true,
-          errorBuilder: (_, _, _) => widget.fallback,
+        final loaded = bytes != null && bytes.isNotEmpty;
+        return AnimatedSwitcher(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 240),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          child: loaded
+              ? Image.memory(
+                  bytes,
+                  key: ValueKey('media-${widget.mediaUrl}'),
+                  fit: widget.fit,
+                  gaplessPlayback: true,
+                  errorBuilder: (_, _, _) => widget.fallback,
+                )
+              : KeyedSubtree(
+                  key: ValueKey('media-placeholder-${widget.mediaUrl}'),
+                  child: widget.fallback,
+                ),
         );
       },
     );

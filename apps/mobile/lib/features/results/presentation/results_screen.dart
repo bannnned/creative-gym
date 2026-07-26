@@ -73,7 +73,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
         future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel();
+            return const AsyncLoadingPanel(
+              message: 'Загружаем итог...',
+              layout: AsyncLoadingLayout.photo,
+            );
           }
           if (snapshot.hasError) {
             return AsyncErrorPanel(

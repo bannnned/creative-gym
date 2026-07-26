@@ -162,7 +162,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         future: _profileFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel(message: 'Загружаем профиль...');
+            return const AsyncLoadingPanel(
+              message: 'Загружаем профиль...',
+              layout: AsyncLoadingLayout.profile,
+            );
           }
           if (snapshot.hasError) {
             return AsyncErrorPanel(

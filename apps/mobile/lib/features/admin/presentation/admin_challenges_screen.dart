@@ -144,7 +144,10 @@ class _AdminChallengesScreenState extends State<AdminChallengesScreen> {
         future: _challengesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel(message: 'Загружаем челленджи...');
+            return const AsyncLoadingPanel(
+              message: 'Загружаем челленджи...',
+              layout: AsyncLoadingLayout.list,
+            );
           }
           if (snapshot.hasError) {
             return AsyncErrorPanel(

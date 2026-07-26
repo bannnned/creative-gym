@@ -50,7 +50,10 @@ class _ChallengeDetailsScreenState extends State<ChallengeDetailsScreen> {
         future: _workoutFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const AsyncLoadingPanel(message: 'Загрузка тренировки...');
+            return const AsyncLoadingPanel(
+              message: 'Загружаем задание...',
+              layout: AsyncLoadingLayout.detail,
+            );
           }
 
           if (snapshot.hasError) {

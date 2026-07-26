@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:creative_gym_mobile/features/auth/presentation/login_screen.dart';
 import 'package:creative_gym_mobile/features/admin/presentation/admin_challenges_screen.dart';
 import 'package:creative_gym_mobile/features/challenges/presentation/weekly_workouts_screen.dart';
@@ -8,6 +9,7 @@ import 'package:creative_gym_mobile/features/profile/presentation/profile_screen
 import 'package:creative_gym_mobile/features/profile/domain/profile_data.dart';
 import 'package:creative_gym_mobile/features/submissions/presentation/upload_submission_screen.dart';
 import 'package:creative_gym_mobile/features/voting/presentation/voting_screen.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 abstract final class AppRoutes {
@@ -58,44 +60,54 @@ GoRouter createAppRouter() {
     routes: [
       GoRoute(
         path: AppRoutes.login,
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => _appPage(state, const LoginScreen()),
       ),
       GoRoute(
         path: AppRoutes.challenges,
-        builder: (context, state) => const ChallengeSelectionScreen(),
+        pageBuilder: (context, state) =>
+            _appPage(state, const ChallengeSelectionScreen()),
       ),
       GoRoute(
         path: AppRoutes.challengeDetailsPath,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final challengeId = state.pathParameters['challengeId'] ?? '';
-          return WeeklyWorkoutsScreen(challengeId: challengeId);
+          return _appPage(
+            state,
+            WeeklyWorkoutsScreen(challengeId: challengeId),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.profile,
-        builder: (context, state) => const ProfileScreen(),
+        pageBuilder: (context, state) => _appPage(state, const ProfileScreen()),
       ),
       GoRoute(
         path: AppRoutes.publicProfilePath,
-        builder: (context, state) =>
-            ProfileScreen(userId: state.pathParameters['userId']),
+        pageBuilder: (context, state) => _appPage(
+          state,
+          ProfileScreen(userId: state.pathParameters['userId']),
+        ),
       ),
       GoRoute(
         path: AppRoutes.adminChallenges,
-        builder: (context, state) => const AdminChallengesScreen(),
+        pageBuilder: (context, state) =>
+            _appPage(state, const AdminChallengesScreen()),
       ),
       GoRoute(
         path: AppRoutes.profileWorksPath,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final index =
               int.tryParse(state.uri.queryParameters['index'] ?? '') ?? 0;
           final winnersOnly = state.uri.queryParameters['winners'] == '1';
-          return ProfilePhotoViewerScreen(
-            initialIndex: index,
-            winnersOnly: winnersOnly,
-            works: state.extra is List<ProfileWork>
-                ? state.extra! as List<ProfileWork>
-                : null,
+          return _appPage(
+            state,
+            ProfilePhotoViewerScreen(
+              initialIndex: index,
+              winnersOnly: winnersOnly,
+              works: state.extra is List<ProfileWork>
+                  ? state.extra! as List<ProfileWork>
+                  : null,
+            ),
           );
         },
       ),
@@ -105,27 +117,59 @@ GoRouter createAppRouter() {
       ),
       GoRoute(
         path: AppRoutes.roomUploadPath,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final roomId = state.pathParameters['roomId'] ?? '';
-          return UploadSubmissionScreen(roomId: roomId);
+          return _appPage(state, UploadSubmissionScreen(roomId: roomId));
         },
       ),
       GoRoute(
         path: AppRoutes.roomVotePath,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final roomId = state.pathParameters['roomId'] ?? '';
           final demoMode = state.uri.queryParameters['demo'] == '1';
-          return VotingScreen(roomId: roomId, demoMode: demoMode);
+          return _appPage(
+            state,
+            VotingScreen(roomId: roomId, demoMode: demoMode),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.roomResultsPath,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final roomId = state.pathParameters['roomId'] ?? '';
           final demoMode = state.uri.queryParameters['demo'] == '1';
-          return ResultsScreen(roomId: roomId, demoMode: demoMode);
+          return _appPage(
+            state,
+            ResultsScreen(roomId: roomId, demoMode: demoMode),
+          );
         },
       ),
     ],
+  );
+}
+
+CustomTransitionPage<void> _appPage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 280),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      if (MediaQuery.disableAnimationsOf(context)) {
+        return child;
+      }
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SharedAxisTransition(
+        animation: curved,
+        secondaryAnimation: secondaryAnimation,
+        transitionType: SharedAxisTransitionType.horizontal,
+        fillColor: Theme.of(context).scaffoldBackgroundColor,
+        child: child,
+      );
+    },
   );
 }
