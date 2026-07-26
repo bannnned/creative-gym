@@ -131,6 +131,7 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 	mux.HandleFunc("POST /api/v1/rooms/{roomId}/votes", votingHandler.CastVote)
 	mux.HandleFunc("GET /api/v1/rooms/{roomId}/results", resultsHandler.GetRoomResult)
 	mux.HandleFunc("GET /api/v1/profile/me", resultsHandler.GetProfile)
+	mux.HandleFunc("GET /api/v1/profiles/{userId}", resultsHandler.GetPublicProfile)
 	mux.HandleFunc("DELETE /api/v1/submissions/{submissionId}", submissionHandler.DeleteMine)
 	mux.HandleFunc("GET /api/v1/submissions/{submissionId}/media", submissionHandler.GetMedia)
 

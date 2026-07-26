@@ -8,11 +8,14 @@ import 'package:creative_gym_mobile/features/profile/presentation/widgets/crown_
 import 'package:creative_gym_mobile/features/profile/presentation/widgets/profile_work_artwork.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_glass_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, this.userId});
+
+  final String? userId;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -25,11 +28,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _profileFuture = appDependencies.profile.getProfile();
+    _profileFuture = appDependencies.profile.getProfile(userId: widget.userId);
   }
 
   void _reload() {
-    setState(() => _profileFuture = appDependencies.profile.getProfile());
+    setState(
+      () => _profileFuture = appDependencies.profile.getProfile(
+        userId: widget.userId,
+      ),
+    );
   }
 
   Future<void> _openAdmin() async {
@@ -68,17 +75,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<String?> _askForAdminCode() {
-    final controller = TextEditingController();
-    final result = showDialog<String>(
+    var code = '';
+    return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Режим автора'),
         content: TextField(
           key: const ValueKey('admin-code-field'),
-          controller: controller,
           autofocus: true,
           obscureText: true,
           onSubmitted: (value) => Navigator.pop(context, value.trim()),
+          onChanged: (value) => code = value.trim(),
           decoration: const InputDecoration(
             labelText: 'Код',
             border: OutlineInputBorder(),
@@ -90,13 +97,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Отмена'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            onPressed: () => Navigator.pop(context, code),
             child: const Text('Открыть'),
           ),
         ],
       ),
     );
-    return result.whenComplete(controller.dispose);
+  }
+
+  Future<void> _startNewTestAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Новый тестовый аккаунт?'),
+        content: const Text(
+          'Текущая работа останется на сервере, но приложение переключится '
+          'на нового участника.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Создать'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    try {
+      await appDependencies.auth.startNewGuestSession();
+      if (mounted) {
+        context.go(AppRoutes.challenges);
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
+    }
   }
 
   @override
@@ -104,14 +150,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return AppGlassScaffold(
       title: 'Профиль',
       showBackButton: true,
-      actions: [
-        AppGlassHeaderAction(
-          key: const ValueKey('admin-menu-button'),
-          icon: Icons.more_horiz_rounded,
-          semanticLabel: 'Режим автора',
-          onPressed: _openAdmin,
-        ),
-      ],
+      actions: widget.userId == null
+          ? [
+              if (kDebugMode)
+                AppGlassHeaderAction(
+                  key: const ValueKey('new-test-account-button'),
+                  icon: Icons.person_add_alt_1_rounded,
+                  semanticLabel: 'Новый тестовый аккаунт',
+                  onPressed: _startNewTestAccount,
+                ),
+              AppGlassHeaderAction(
+                key: const ValueKey('admin-menu-button'),
+                icon: Icons.more_horiz_rounded,
+                semanticLabel: 'Режим автора',
+                onPressed: _openAdmin,
+              ),
+            ]
+          : const [],
       body: FutureBuilder<ProfileData>(
         future: _profileFuture,
         builder: (context, snapshot) {
@@ -127,6 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           final data =
               snapshot.data ??
               const ProfileData(
+                isCurrentUser: false,
                 points: 0,
                 firstPlaces: 0,
                 secondPlaces: 0,
@@ -165,6 +221,15 @@ class _ProfileContent extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
         const _ProfileAvatar(),
+        const SizedBox(height: 12),
+        Text(
+          data.displayName,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: AppTheme.ink,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 24),
         _StatsBlock(data: data),
         const SizedBox(height: 30),

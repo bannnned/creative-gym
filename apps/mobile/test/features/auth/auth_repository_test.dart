@@ -78,4 +78,41 @@ void main() {
     expect(await repository.restoreSession(), isTrue);
     await requestsHandled.future;
   });
+
+  test('starts a new guest without sending the previous session', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final handled = Completer<void>();
+
+    server.listen((request) async {
+      expect(request.method, 'POST');
+      expect(request.uri.path, '/api/v1/auth/guest');
+      expect(request.headers.value('Authorization'), isNull);
+      request.response
+        ..statusCode = HttpStatus.created
+        ..headers.contentType = ContentType.json
+        ..write(jsonEncode({'token': 'new-session-token'}));
+      await request.response.close();
+      handled.complete();
+    });
+
+    final sessionStore = MemoryAuthSessionStore();
+    await sessionStore.writeToken('old-session-token');
+    final repository = AuthRepository(
+      ApiClient(
+        AppConfig(
+          mode: DataSourceMode.api,
+          apiBaseUrl: 'http://127.0.0.1:${server.port}',
+        ),
+        sessionStore,
+      ),
+      sessionStore,
+      true,
+    );
+
+    await repository.startNewGuestSession();
+
+    expect(await sessionStore.readToken(), 'new-session-token');
+    await handled.future;
+  });
 }

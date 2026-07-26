@@ -111,6 +111,42 @@ void main() {
     expect(viewer.controller?.page, closeTo(1, 0.01));
   });
 
+  testWidgets('admin code dialog closes without a disposed controller error', (
+    tester,
+  ) async {
+    await openChallenges(tester);
+    await tester.tap(find.byKey(const ValueKey('profile-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('admin-menu-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('admin-code-field')),
+      'test-code',
+    );
+    await tester.tap(find.text('Открыть'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Режим автора'), findsNothing);
+  });
+
+  testWidgets('debug profile action starts a fresh test participant', (
+    tester,
+  ) async {
+    await openChallenges(tester);
+    await tester.tap(find.byKey(const ValueKey('profile-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('new-test-account-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Новый тестовый аккаунт?'), findsOneWidget);
+    await tester.tap(find.text('Создать'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('challenge-list')), findsOneWidget);
+  });
+
   testWidgets('rules stay behind a secondary action', (tester) async {
     await openChallenges(tester);
     await chooseWorkout(tester, 'Утренний свет');
@@ -205,5 +241,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Скрыть работы'), findsOneWidget);
     expect(find.text('Ваш кадр'), findsWidgets);
+
+    await tester.tap(find.text('Анонимный участник').first);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('profile-screen')), findsOneWidget);
+    expect(find.text('Участник'), findsOneWidget);
+    expect(find.byKey(const ValueKey('admin-menu-button')), findsNothing);
   });
 }

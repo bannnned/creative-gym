@@ -15,6 +15,7 @@ abstract final class AppRoutes {
   static const challenges = '/challenges';
   static const challengeDetailsPath = '/challenges/:challengeId';
   static const profile = '/profile';
+  static const publicProfilePath = '/profiles/:userId';
   static const adminChallenges = '/profile/admin/challenges';
   static const profileWorksPath = '/profile/works';
   static const roomPath = '/rooms/:roomId';
@@ -24,6 +25,10 @@ abstract final class AppRoutes {
 
   static String challengeDetails(String challengeId) {
     return '/challenges/$challengeId';
+  }
+
+  static String publicProfile(String userId) {
+    return '/profiles/$userId';
   }
 
   static String profileWorks(int index, {required bool winnersOnly}) {
@@ -69,6 +74,11 @@ GoRouter createAppRouter() {
       GoRoute(
         path: AppRoutes.profile,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.publicProfilePath,
+        builder: (context, state) =>
+            ProfileScreen(userId: state.pathParameters['userId']),
       ),
       GoRoute(
         path: AppRoutes.adminChallenges,

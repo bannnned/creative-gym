@@ -55,6 +55,7 @@ WHERE r.id = $1`, roomID, userID).Scan(
 		var item SubmissionResult
 		if err := rows.Scan(
 			&item.ID,
+			&item.AuthorUserID,
 			&item.Title,
 			&item.AuthorLabel,
 			&item.Wins,
@@ -118,6 +119,7 @@ ranked AS (
 )
 SELECT
   id::text,
+  user_id::text,
   title,
   display_name,
   wins,
@@ -128,6 +130,33 @@ FROM ranked
 ORDER BY rank`
 
 func (r *Repository) GetProfile(ctx context.Context, userID string) (Profile, error) {
+	return r.getProfile(ctx, userID, false, true)
+}
+
+func (r *Repository) GetPublicProfile(ctx context.Context, userID string) (Profile, error) {
+	return r.getProfile(ctx, userID, true, false)
+}
+
+func (r *Repository) getProfile(
+	ctx context.Context,
+	userID string,
+	finishedOnly bool,
+	isCurrentUser bool,
+) (Profile, error) {
+	var profile Profile
+	profile.UserID = userID
+	profile.IsCurrentUser = isCurrentUser
+	err := r.pool.QueryRow(ctx, `
+SELECT display_name
+FROM users
+WHERE id = $1`, userID).Scan(&profile.DisplayName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Profile{}, ErrProfileNotFound
+		}
+		return Profile{}, fmt.Errorf("query profile identity: %w", err)
+	}
+
 	rows, err := r.pool.Query(ctx, `
 WITH scored AS (
   SELECT
@@ -149,7 +178,9 @@ WITH scored AS (
     AND m.deleted_at IS NULL
   LEFT JOIN votes v ON v.room_id = s.room_id
     AND (v.left_submission_id = s.id OR v.right_submission_id = s.id)
-  WHERE s.status = 'active' AND s.deleted_at IS NULL
+  WHERE s.status = 'active'
+    AND s.deleted_at IS NULL
+    AND ($2::boolean = false OR now() >= c.voting_ends_at)
   GROUP BY s.id, s.room_id, s.user_id, c.title, c.voting_ends_at, s.created_at
 ),
 ranked AS (
@@ -176,13 +207,12 @@ SELECT
   now() >= voting_ends_at
 FROM ranked
 WHERE user_id = $1
-ORDER BY created_at DESC`, userID)
+ORDER BY created_at DESC`, userID, finishedOnly)
 	if err != nil {
 		return Profile{}, fmt.Errorf("query profile works: %w", err)
 	}
 	defer rows.Close()
 
-	var profile Profile
 	for rows.Next() {
 		var work ProfileWork
 		if err := rows.Scan(&work.ID, &work.Title, &work.Place, &work.Finished); err != nil {

@@ -209,45 +209,71 @@ class _ResultRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 58,
-          child: _ResultPreview(submission: submission, aspectRatio: 1),
-        ),
-        const SizedBox(width: 12),
-        SizedBox(
-          width: 28,
-          child: Text(
-            '${submission.rank}',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+    final canOpenProfile =
+        submission.isCurrentUser || submission.authorUserId.isNotEmpty;
+    return Semantics(
+      button: canOpenProfile,
+      label: canOpenProfile ? 'Открыть профиль автора' : null,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppTheme.radiusL),
+        child: InkWell(
+          onTap: canOpenProfile
+              ? () {
+                  final location = submission.isCurrentUser
+                      ? AppRoutes.profile
+                      : AppRoutes.publicProfile(submission.authorUserId);
+                  context.push(location);
+                }
+              : null,
+          borderRadius: BorderRadius.circular(AppTheme.radiusL),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 58,
+                  child: _ResultPreview(submission: submission, aspectRatio: 1),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 28,
+                  child: Text(
+                    '${submission.rank}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        submission.isCurrentUser
+                            ? 'Ваш кадр'
+                            : submission.authorLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        submission.scoreLabel,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.mutedInk,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                submission.isCurrentUser ? 'Ваш кадр' : submission.authorLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                submission.scoreLabel,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppTheme.mutedInk),
-              ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

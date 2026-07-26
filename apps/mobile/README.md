@@ -26,6 +26,8 @@ Current state:
 - The profile route includes real derived points, prize-place crowns, a
   winners-only work filter, an authenticated three-column gallery, and a
   full-screen swipe viewer in API mode.
+- Finished result rows open the author's public profile. Public galleries show
+  only completed works, preserving anonymous submission and voting phases.
 - The sign-in screen uses a lightweight animated frame deck and respects
   Reduce Motion.
 - Comparison loads anonymous S3-backed pairs, records a real vote by tapping
@@ -39,6 +41,8 @@ Current state:
   in place later.
 - A small profile action unlocks server-verified admin access. Admins can
   create, edit, phase-switch, archive, and change covers for challenges.
+- Debug builds expose a confirmed "new test account" action in the own profile
+  so one device can submit several independent QA participants.
 
 The active interface rules are documented in
 `../../docs/14-simple-ux-plan.md`.

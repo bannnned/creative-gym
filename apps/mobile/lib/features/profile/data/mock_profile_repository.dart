@@ -6,5 +6,19 @@ class MockProfileRepository implements ProfileRepository {
   const MockProfileRepository();
 
   @override
-  Future<ProfileData> getProfile() async => mockProfileData;
+  Future<ProfileData> getProfile({String? userId}) async {
+    if (userId == null) {
+      return mockProfileData;
+    }
+    return ProfileData(
+      userId: userId,
+      displayName: 'Участник',
+      isCurrentUser: false,
+      points: mockProfileData.points,
+      firstPlaces: mockProfileData.firstPlaces,
+      secondPlaces: mockProfileData.secondPlaces,
+      thirdPlaces: mockProfileData.thirdPlaces,
+      works: mockProfileData.works,
+    );
+  }
 }

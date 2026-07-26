@@ -41,6 +41,7 @@ class ApiResultsRepository implements ResultsRepository {
       rank: (json['rank'] as num?)?.toInt() ?? 0,
       title: json['title'] as String? ?? 'Работа',
       authorLabel: json['author_label'] as String? ?? 'Участник',
+      authorUserId: json['author_user_id'] as String? ?? '',
       wins: (json['wins'] as num?)?.toInt() ?? 0,
       comparisons: (json['comparisons'] as num?)?.toInt() ?? 0,
       paletteStart: 0xFF91B7A8,

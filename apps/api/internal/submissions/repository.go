@@ -240,6 +240,7 @@ JOIN media_objects m ON m.submission_id = s.id
 WHERE s.id = $1
   AND (
     s.user_id = $2
+    OR now() >= c.voting_ends_at
     OR (
       now() >= c.voting_starts_at
       AND EXISTS (

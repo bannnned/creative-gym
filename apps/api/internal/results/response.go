@@ -15,6 +15,7 @@ type roomResultResponse struct {
 
 type resultSubmissionResponse struct {
 	ID            string `json:"id"`
+	AuthorUserID  string `json:"author_user_id"`
 	Rank          int    `json:"rank"`
 	Title         string `json:"title"`
 	AuthorLabel   string `json:"author_label"`
@@ -29,11 +30,14 @@ type profileEnvelope struct {
 }
 
 type profileResponse struct {
-	Points       int                   `json:"points"`
-	FirstPlaces  int                   `json:"first_places"`
-	SecondPlaces int                   `json:"second_places"`
-	ThirdPlaces  int                   `json:"third_places"`
-	Works        []profileWorkResponse `json:"works"`
+	UserID        string                `json:"id"`
+	DisplayName   string                `json:"display_name"`
+	IsCurrentUser bool                  `json:"is_current_user"`
+	Points        int                   `json:"points"`
+	FirstPlaces   int                   `json:"first_places"`
+	SecondPlaces  int                   `json:"second_places"`
+	ThirdPlaces   int                   `json:"third_places"`
+	Works         []profileWorkResponse `json:"works"`
 }
 
 type profileWorkResponse struct {
@@ -65,6 +69,7 @@ func toRoomResultResponse(result RoomResult) roomResultEnvelope {
 func toSubmissionResponse(submission SubmissionResult) resultSubmissionResponse {
 	return resultSubmissionResponse{
 		ID:            submission.ID,
+		AuthorUserID:  submission.AuthorUserID,
 		Rank:          submission.Rank,
 		Title:         submission.Title,
 		AuthorLabel:   submission.AuthorLabel,
@@ -77,11 +82,14 @@ func toSubmissionResponse(submission SubmissionResult) resultSubmissionResponse 
 
 func toProfileResponse(profile Profile) profileEnvelope {
 	response := profileResponse{
-		Points:       profile.Points,
-		FirstPlaces:  profile.FirstPlaces,
-		SecondPlaces: profile.SecondPlaces,
-		ThirdPlaces:  profile.ThirdPlaces,
-		Works:        make([]profileWorkResponse, 0, len(profile.Works)),
+		UserID:        profile.UserID,
+		DisplayName:   profile.DisplayName,
+		IsCurrentUser: profile.IsCurrentUser,
+		Points:        profile.Points,
+		FirstPlaces:   profile.FirstPlaces,
+		SecondPlaces:  profile.SecondPlaces,
+		ThirdPlaces:   profile.ThirdPlaces,
+		Works:         make([]profileWorkResponse, 0, len(profile.Works)),
 	}
 	for _, work := range profile.Works {
 		response.Works = append(response.Works, profileWorkResponse{

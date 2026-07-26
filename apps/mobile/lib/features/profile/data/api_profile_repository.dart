@@ -8,8 +8,11 @@ class ApiProfileRepository implements ProfileRepository {
   final ApiClient _client;
 
   @override
-  Future<ProfileData> getProfile() async {
-    final json = await _client.getJson('/api/v1/profile/me');
+  Future<ProfileData> getProfile({String? userId}) async {
+    final path = userId == null
+        ? '/api/v1/profile/me'
+        : '/api/v1/profiles/$userId';
+    final json = await _client.getJson(path);
     final profile = json['profile'] as Map<String, dynamic>? ?? const {};
     final works = (profile['works'] as List<dynamic>? ?? const [])
         .whereType<Map<String, dynamic>>()
@@ -26,6 +29,9 @@ class ApiProfileRepository implements ProfileRepository {
         )
         .toList(growable: false);
     return ProfileData(
+      userId: profile['id'] as String? ?? userId ?? '',
+      displayName: profile['display_name'] as String? ?? 'Участник',
+      isCurrentUser: profile['is_current_user'] as bool? ?? userId == null,
       points: (profile['points'] as num?)?.toInt() ?? 0,
       firstPlaces: (profile['first_places'] as num?)?.toInt() ?? 0,
       secondPlaces: (profile['second_places'] as num?)?.toInt() ?? 0,

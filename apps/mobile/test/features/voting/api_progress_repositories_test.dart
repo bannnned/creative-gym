@@ -51,6 +51,7 @@ void main() {
                 'submissions_count': 2,
                 'current_user_submission': {
                   'id': 'mine',
+                  'author_user_id': 'current-user',
                   'rank': 2,
                   'title': 'Morning Light',
                   'author_label': 'Участник',
@@ -67,6 +68,9 @@ void main() {
           request.response.write(
             jsonEncode({
               'profile': {
+                'id': 'current-user',
+                'display_name': 'Участник',
+                'is_current_user': true,
                 'points': 60,
                 'first_places': 0,
                 'second_places': 1,
@@ -82,9 +86,24 @@ void main() {
               },
             }),
           );
+        case 'GET /api/v1/profiles/author-user':
+          request.response.write(
+            jsonEncode({
+              'profile': {
+                'id': 'author-user',
+                'display_name': 'Автор',
+                'is_current_user': false,
+                'points': 100,
+                'first_places': 1,
+                'second_places': 0,
+                'third_places': 0,
+                'works': <Map<String, dynamic>>[],
+              },
+            }),
+          );
       }
       await request.response.close();
-      if (count == 4 && !handled.isCompleted) {
+      if (count == 5 && !handled.isCompleted) {
         handled.complete();
       }
     });
@@ -103,10 +122,19 @@ void main() {
 
     final result = await ApiResultsRepository(client).getRoomResult('room-1');
     expect(result?.currentUserSubmission?.rank, 2);
+    expect(result?.currentUserSubmission?.authorUserId, 'current-user');
 
     final profile = await ApiProfileRepository(client).getProfile();
+    expect(profile.userId, 'current-user');
+    expect(profile.isCurrentUser, isTrue);
     expect(profile.points, 60);
     expect(profile.works.single.place, 2);
+
+    final publicProfile = await ApiProfileRepository(
+      client,
+    ).getProfile(userId: 'author-user');
+    expect(publicProfile.displayName, 'Автор');
+    expect(publicProfile.isCurrentUser, isFalse);
     await handled.future;
   });
 }

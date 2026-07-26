@@ -77,6 +77,7 @@ GET /api/v1/rooms/{roomId}/votes/next-pair
 POST /api/v1/rooms/{roomId}/votes
 GET /api/v1/rooms/{roomId}/results
 GET /api/v1/profile/me
+GET /api/v1/profiles/{userId}
 DELETE /api/v1/submissions/{submissionId}
 GET /api/v1/submissions/{submissionId}/media
 ```
@@ -87,7 +88,9 @@ choices. Results become available after `voting_ends_at` and rank works by win
 rate, then comparison count and stable creation order.
 
 Profile points are derived from completed room results: 100/60/30 points for
-places 1/2/3 and 10 points for another completed submission.
+places 1/2/3 and 10 points for another completed submission. Public profiles
+expose only works whose voting window has ended; authors remain anonymous and
+their unfinished works stay private during submission and voting.
 
 API-backed clients create an opaque guest session and authenticate with
 `Authorization: Bearer <token>`. Only the token hash is stored in PostgreSQL.

@@ -24,6 +24,7 @@ class ResultSubmission {
     required this.rank,
     required this.title,
     required this.authorLabel,
+    this.authorUserId = '',
     required this.wins,
     required this.comparisons,
     required this.paletteStart,
@@ -36,6 +37,7 @@ class ResultSubmission {
   final int rank;
   final String title;
   final String authorLabel;
+  final String authorUserId;
   final int wins;
   final int comparisons;
   final int paletteStart;

@@ -60,4 +60,9 @@ class AuthRepository {
       rethrow;
     }
   }
+
+  Future<void> startNewGuestSession() async {
+    await _sessionStore.clear();
+    await signInAsGuest();
+  }
 }

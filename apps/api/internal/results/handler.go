@@ -11,6 +11,7 @@ import (
 type Store interface {
 	GetRoomResult(ctx context.Context, roomID string, userID string) (RoomResult, error)
 	GetProfile(ctx context.Context, userID string) (Profile, error)
+	GetPublicProfile(ctx context.Context, userID string) (Profile, error)
 }
 
 type Handler struct {
@@ -57,6 +58,38 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	profile, err := h.store.GetProfile(r.Context(), userID)
 	if err != nil {
+		h.writeAPIError(w, http.StatusInternalServerError, "profile_failed", "Failed to load profile.")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, toProfileResponse(profile))
+}
+
+func (h *Handler) GetPublicProfile(w http.ResponseWriter, r *http.Request) {
+	targetUserID := r.PathValue("userId")
+	if targetUserID == "" {
+		h.writeAPIError(w, http.StatusBadRequest, "user_id_required", "User id is required.")
+		return
+	}
+	viewerUserID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		h.writeAPIError(w, http.StatusUnauthorized, "user_required", "User is required.")
+		return
+	}
+
+	var (
+		profile Profile
+		err     error
+	)
+	if targetUserID == viewerUserID {
+		profile, err = h.store.GetProfile(r.Context(), targetUserID)
+	} else {
+		profile, err = h.store.GetPublicProfile(r.Context(), targetUserID)
+	}
+	if err != nil {
+		if errors.Is(err, ErrProfileNotFound) {
+			h.writeAPIError(w, http.StatusNotFound, "profile_not_found", "Profile not found.")
+			return
+		}
 		h.writeAPIError(w, http.StatusInternalServerError, "profile_failed", "Failed to load profile.")
 		return
 	}

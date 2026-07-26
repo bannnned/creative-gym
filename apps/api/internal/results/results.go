@@ -3,12 +3,14 @@ package results
 import "errors"
 
 var (
-	ErrRoomNotFound   = errors.New("room not found")
-	ErrResultsPending = errors.New("results are not available")
+	ErrRoomNotFound    = errors.New("room not found")
+	ErrResultsPending  = errors.New("results are not available")
+	ErrProfileNotFound = errors.New("profile not found")
 )
 
 type SubmissionResult struct {
 	ID            string
+	AuthorUserID  string
 	Title         string
 	AuthorLabel   string
 	Wins          int
@@ -34,11 +36,14 @@ type ProfileWork struct {
 }
 
 type Profile struct {
-	Points       int
-	FirstPlaces  int
-	SecondPlaces int
-	ThirdPlaces  int
-	Works        []ProfileWork
+	UserID        string
+	DisplayName   string
+	IsCurrentUser bool
+	Points        int
+	FirstPlaces   int
+	SecondPlaces  int
+	ThirdPlaces   int
+	Works         []ProfileWork
 }
 
 func pointsForWork(work ProfileWork) int {

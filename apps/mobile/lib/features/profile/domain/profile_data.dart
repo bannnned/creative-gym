@@ -1,5 +1,8 @@
 class ProfileData {
   const ProfileData({
+    this.userId = '',
+    this.displayName = 'Участник',
+    this.isCurrentUser = true,
     required this.points,
     required this.firstPlaces,
     required this.secondPlaces,
@@ -7,6 +10,9 @@ class ProfileData {
     required this.works,
   });
 
+  final String userId;
+  final String displayName;
+  final bool isCurrentUser;
   final int points;
   final int firstPlaces;
   final int secondPlaces;
