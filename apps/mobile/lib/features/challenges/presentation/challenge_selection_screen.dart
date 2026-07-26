@@ -71,30 +71,95 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
             return _EmptyChallenges(onRetry: _reload);
           }
 
+          final sections = _sectionsFor(workouts);
           return RefreshIndicator(
             onRefresh: () async {
               _reload();
               await _workoutsFuture;
             },
-            child: ListView.separated(
+            child: ListView(
               key: const ValueKey('challenge-list'),
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-              itemCount: workouts.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final workout = workouts[index];
-                return _ChallengeCard(
-                  workout: workout,
-                  paletteIndex: index,
-                  onTap: () => _openChallenge(workout),
-                );
-              },
+              children: [
+                for (final section in sections) ...[
+                  Padding(
+                    key: ValueKey('challenge-section-${section.key}'),
+                    padding: const EdgeInsets.only(top: 6, bottom: 12),
+                    child: Text(
+                      section.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppTheme.ink,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  for (final workout in section.workouts) ...[
+                    _ChallengeCard(
+                      workout: workout,
+                      paletteIndex: workouts.indexOf(workout),
+                      onTap: () => _openChallenge(workout),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ],
+              ],
             ),
           );
         },
       ),
     );
   }
+
+  List<_ChallengeSection> _sectionsFor(List<WeeklyWorkout> workouts) {
+    final active =
+        workouts
+            .where((workout) => !_isVoting(workout) && !_isCompleted(workout))
+            .toList()
+          ..sort((left, right) {
+            final leftUpcoming = left.phase.toLowerCase().contains('скоро');
+            final rightUpcoming = right.phase.toLowerCase().contains('скоро');
+            return (leftUpcoming ? 1 : 0).compareTo(rightUpcoming ? 1 : 0);
+          });
+    final voting = workouts.where(_isVoting).toList();
+    final completed = workouts.where(_isCompleted).toList();
+
+    return [
+      if (active.isNotEmpty)
+        _ChallengeSection(key: 'active', title: 'Активные', workouts: active),
+      if (voting.isNotEmpty)
+        _ChallengeSection(
+          key: 'voting',
+          title: 'Голосование',
+          workouts: voting,
+        ),
+      if (completed.isNotEmpty)
+        _ChallengeSection(
+          key: 'completed',
+          title: 'Завершённые',
+          workouts: completed,
+        ),
+    ];
+  }
+
+  bool _isVoting(WeeklyWorkout workout) =>
+      workout.phase.toLowerCase().contains('голос');
+
+  bool _isCompleted(WeeklyWorkout workout) {
+    final phase = workout.phase.toLowerCase();
+    return phase.contains('результат') || phase.contains('заверш');
+  }
+}
+
+class _ChallengeSection {
+  const _ChallengeSection({
+    required this.key,
+    required this.title,
+    required this.workouts,
+  });
+
+  final String key;
+  final String title;
+  final List<WeeklyWorkout> workouts;
 }
 
 class _ChallengeCard extends StatefulWidget {

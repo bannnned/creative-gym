@@ -8,6 +8,8 @@ class RoomDto {
     required this.participantCount,
     required this.capacity,
     required this.viewerHasSubmission,
+    required this.viewerVotesCompleted,
+    required this.viewerVotesTarget,
     required this.submissionEndsAt,
     required this.votingEndsAt,
   });
@@ -20,6 +22,8 @@ class RoomDto {
   final int participantCount;
   final int capacity;
   final bool viewerHasSubmission;
+  final int viewerVotesCompleted;
+  final int viewerVotesTarget;
   final DateTime submissionEndsAt;
   final DateTime votingEndsAt;
 
@@ -33,6 +37,9 @@ class RoomDto {
       participantCount: json['participant_count'] as int? ?? 0,
       capacity: json['capacity'] as int? ?? 16,
       viewerHasSubmission: json['viewer_has_submission'] as bool? ?? false,
+      viewerVotesCompleted:
+          (json['viewer_votes_completed'] as num?)?.toInt() ?? 0,
+      viewerVotesTarget: (json['viewer_votes_target'] as num?)?.toInt() ?? 0,
       submissionEndsAt: DateTime.parse(json['submission_ends_at'] as String),
       votingEndsAt: DateTime.parse(json['voting_ends_at'] as String),
     );

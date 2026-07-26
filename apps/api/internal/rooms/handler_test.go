@@ -38,16 +38,18 @@ func TestJoinChallenge(t *testing.T) {
 			}
 
 			return Room{
-				ID:                 "room-id",
-				ChallengeID:        challengeID,
-				ChallengeTitle:     "Morning Light",
-				ChallengeTheme:     "Light and Shadow",
-				SubmissionStartsAt: base.Add(-24 * time.Hour),
-				SubmissionEndsAt:   base.Add(24 * time.Hour),
-				VotingStartsAt:     base.Add(24 * time.Hour),
-				VotingEndsAt:       base.Add(72 * time.Hour),
-				ParticipantCount:   1,
-				Capacity:           16,
+				ID:                   "room-id",
+				ChallengeID:          challengeID,
+				ChallengeTitle:       "Morning Light",
+				ChallengeTheme:       "Light and Shadow",
+				SubmissionStartsAt:   base.Add(-24 * time.Hour),
+				SubmissionEndsAt:     base.Add(24 * time.Hour),
+				VotingStartsAt:       base.Add(24 * time.Hour),
+				VotingEndsAt:         base.Add(72 * time.Hour),
+				ParticipantCount:     1,
+				Capacity:             16,
+				ViewerVotesCompleted: 3,
+				ViewerVotesTarget:    3,
 			}, nil
 		},
 	}, testWriteJSON, testWriteAPIError)
@@ -75,6 +77,13 @@ func TestJoinChallenge(t *testing.T) {
 
 	if body.Room.Phase != PhaseSubmission {
 		t.Fatalf("room phase = %q, want %q", body.Room.Phase, PhaseSubmission)
+	}
+	if body.Room.ViewerVotesCompleted != 3 || body.Room.ViewerVotesTarget != 3 {
+		t.Fatalf(
+			"voting progress = %d/%d, want 3/3",
+			body.Room.ViewerVotesCompleted,
+			body.Room.ViewerVotesTarget,
+		)
 	}
 }
 

@@ -31,6 +31,8 @@ class RoomMapper {
         phase: phase,
         hasSubmission: hasSubmission,
       ),
+      votingCompleted: dto.viewerVotesCompleted,
+      votingTarget: dto.viewerVotesTarget,
     );
   }
 }

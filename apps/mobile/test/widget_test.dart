@@ -41,6 +41,9 @@ void main() {
   });
 
   testWidgets('login opens the minimalist challenge selection', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await openChallenges(tester);
 
     expect(find.text('Челленджи'), findsOneWidget);
@@ -48,12 +51,23 @@ void main() {
     expect(find.text('Утренний свет'), findsOneWidget);
     expect(find.text('Тихое движение'), findsOneWidget);
     expect(find.text('Осталось 3 дня'), findsOneWidget);
+    expect(find.text('Активные'), findsOneWidget);
+    expect(find.text('Голосование'), findsOneWidget);
+    expect(find.text('Завершённые'), findsOneWidget);
     expect(find.text('Другие задания'), findsNothing);
 
     final firstCardTop = tester.getTopLeft(
       find.byKey(const ValueKey('challenge-card-morning-light')),
     );
     expect(firstCardTop.dy, greaterThan(64));
+    final votingCardTop = tester.getTopLeft(
+      find.byKey(const ValueKey('challenge-card-quiet-motion')),
+    );
+    final completedCardTop = tester.getTopLeft(
+      find.byKey(const ValueKey('challenge-card-evening-shapes')),
+    );
+    expect(votingCardTop.dy, greaterThan(firstCardTop.dy));
+    expect(completedCardTop.dy, greaterThan(votingCardTop.dy));
   });
 
   testWidgets('challenge card opens one focused assignment', (tester) async {
@@ -72,7 +86,8 @@ void main() {
       scrollable: find.byType(Scrollable),
     );
     expect(find.text('Работы собраны'), findsOneWidget);
-    expect(find.text('Сравнить фотографии'), findsOneWidget);
+    expect(find.text('Осталось 2 дн голосования'), findsOneWidget);
+    expect(find.text('Голосовать'), findsOneWidget);
     expect(find.text('Weekly Workouts'), findsNothing);
     expect(find.text('Gym Room'), findsNothing);
   });
@@ -161,6 +176,10 @@ void main() {
 
     expect(find.text('Условия'), findsWidgets);
     expect(find.textContaining('• '), findsWidgets);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('rules-sheet'))).width,
+      tester.view.physicalSize.width / tester.view.devicePixelRatio,
+    );
   });
 
   testWidgets('photo flow keeps one primary action', (tester) async {
@@ -198,22 +217,38 @@ void main() {
     await openChallenges(tester);
     await chooseWorkout(tester, 'Тихое движение');
     await tester.scrollUntilVisible(
-      find.text('Сравнить фотографии'),
+      find.text('Голосовать'),
       180,
       scrollable: find.byType(Scrollable),
     );
-    await tester.tap(find.text('Сравнить фотографии'));
+    await tester.tap(find.text('Голосовать'));
     await tester.pumpAndSettle();
 
     expect(find.text('Какой кадр сильнее?'), findsOneWidget);
     expect(find.text('1 из 3'), findsOneWidget);
-    expect(find.text('Пропустить'), findsOneWidget);
+    expect(find.text('Пропустить'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('fullscreen-Frame A')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('vote-fullscreen-viewer')),
+      findsOneWidget,
+    );
+    expect(find.text('1 из 2'), findsOneWidget);
+    await tester.drag(
+      find.byKey(const ValueKey('vote-fullscreen-viewer')),
+      const Offset(-320, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('2 из 2'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('close-vote-fullscreen')));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('vote-Frame A')));
-    await tester.pump(const Duration(milliseconds: 120));
-    expect(find.text('Выбор принят'), findsOneWidget);
-
-    await tester.pump(const Duration(milliseconds: 220));
+    await tester.pump();
+    expect(find.text('Выбор сделан'), findsOneWidget);
+    expect(find.text('1 из 3'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('submit-vote-button')));
     await tester.pumpAndSettle();
     expect(find.text('2 из 3'), findsOneWidget);
   });

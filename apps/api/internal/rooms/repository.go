@@ -226,7 +226,47 @@ SELECT
       AND s.user_id = $2
       AND s.status = 'active'
       AND s.deleted_at IS NULL
-  ) AS viewer_has_submission
+  ) AS viewer_has_submission,
+  (
+    SELECT count(*)::int
+    FROM votes v
+    WHERE v.room_id = r.id
+      AND v.voter_user_id = $2
+  ) AS viewer_votes_completed,
+  LEAST(
+    10,
+    (
+      SELECT count(*)::int
+      FROM submissions s
+      WHERE s.room_id = r.id
+        AND s.user_id <> $2
+        AND s.status = 'active'
+        AND s.deleted_at IS NULL
+        AND EXISTS (
+          SELECT 1
+          FROM media_objects m
+          WHERE m.submission_id = s.id
+            AND m.status = 'uploaded'
+            AND m.deleted_at IS NULL
+        )
+    ) * (
+      (
+        SELECT count(*)::int
+        FROM submissions s
+        WHERE s.room_id = r.id
+          AND s.user_id <> $2
+          AND s.status = 'active'
+          AND s.deleted_at IS NULL
+          AND EXISTS (
+            SELECT 1
+            FROM media_objects m
+            WHERE m.submission_id = s.id
+              AND m.status = 'uploaded'
+              AND m.deleted_at IS NULL
+          )
+      ) - 1
+    ) / 2
+  ) AS viewer_votes_target
 FROM rooms r
 JOIN challenges c ON c.id = r.challenge_id
 WHERE r.id = $1`, roomID, viewerUserID).Scan(
@@ -241,6 +281,8 @@ WHERE r.id = $1`, roomID, viewerUserID).Scan(
 		&room.ParticipantCount,
 		&room.Capacity,
 		&room.ViewerHasSubmission,
+		&room.ViewerVotesCompleted,
+		&room.ViewerVotesTarget,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

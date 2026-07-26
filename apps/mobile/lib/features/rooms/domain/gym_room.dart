@@ -13,6 +13,8 @@ class GymRoom {
     required this.hasSubmission,
     required this.submissionStatusLabel,
     required this.nextStepLabel,
+    this.votingCompleted = 0,
+    this.votingTarget = 0,
   });
 
   final String id;
@@ -26,6 +28,8 @@ class GymRoom {
   final bool hasSubmission;
   final String submissionStatusLabel;
   final String nextStepLabel;
+  final int votingCompleted;
+  final int votingTarget;
 
   String get participantsLabel => '$participantCount из $maxParticipants';
 
@@ -41,6 +45,9 @@ class GymRoom {
   bool get canUpload => phase == GymRoomPhase.submission;
   bool get canVote => phase == GymRoomPhase.voting;
   bool get canViewResults => phase == GymRoomPhase.results;
+  bool get hasVotingOptions => votingTarget > 0;
+  bool get hasCompletedVoting =>
+      hasVotingOptions && votingCompleted >= votingTarget;
 
   String get phaseHelpLabel {
     return switch (phase) {

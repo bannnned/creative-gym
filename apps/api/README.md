@@ -85,7 +85,9 @@ GET /api/v1/submissions/{submissionId}/media
 Voting returns anonymous pairs, excludes the viewer's own work, prevents a
 repeated vote for the same canonical pair, and caps the MVP session at ten
 choices. Results become available after `voting_ends_at` and rank works by win
-rate, then comparison count and stable creation order.
+rate, then comparison count and stable creation order. Room responses also
+include the authenticated viewer's completed and target vote counts so clients
+can persist a completed-voting state across restarts.
 
 Profile points are derived from completed room results: 100/60/30 points for
 places 1/2/3 and 10 points for another completed submission. Public profiles

@@ -172,26 +172,34 @@ class _WeeklyWorkoutsScreenState extends State<WeeklyWorkoutsScreen> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
+      constraints: BoxConstraints.tightFor(
+        width: MediaQuery.sizeOf(context).width,
+      ),
       builder: (context) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Условия',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 16),
-                for (final rule in workout.rules) ...[
-                  Text('• $rule'),
-                  const SizedBox(height: 10),
+          child: SizedBox(
+            key: const ValueKey('rules-sheet'),
+            width: double.infinity,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Условия',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  for (final rule in workout.rules) ...[
+                    Text('• $rule'),
+                    const SizedBox(height: 10),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );
@@ -392,17 +400,26 @@ class _HomeContent extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                room?.deadlineLabel ?? workout.submissionDeadlineLabel,
+                action.detail ??
+                    room?.deadlineLabel ??
+                    workout.submissionDeadlineLabel,
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: AppTheme.mutedInk),
               ),
               if (action.buttonLabel != null) ...[
                 const SizedBox(height: 20),
-                GlassButton(
-                  key: const ValueKey('primary-workout-action'),
-                  label: isJoining ? 'Подождите...' : action.buttonLabel!,
-                  onPressed: onPrimaryAction,
+                IgnorePointer(
+                  ignoring: !action.isEnabled,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 140),
+                    opacity: action.isEnabled ? 1 : 0.45,
+                    child: GlassButton(
+                      key: const ValueKey('primary-workout-action'),
+                      label: isJoining ? 'Подождите...' : action.buttonLabel!,
+                      onPressed: onPrimaryAction,
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -468,10 +485,17 @@ class _EmptyHome extends StatelessWidget {
 }
 
 class _HomeAction {
-  const _HomeAction({required this.status, this.buttonLabel});
+  const _HomeAction({
+    required this.status,
+    this.detail,
+    this.buttonLabel,
+    this.isEnabled = true,
+  });
 
   final String status;
+  final String? detail;
   final String? buttonLabel;
+  final bool isEnabled;
 
   factory _HomeAction.from(GymRoom? room, {required WeeklyWorkout workout}) {
     if (room == null) {
@@ -502,15 +526,38 @@ class _HomeAction {
                 status: 'Добавьте одну фотографию',
                 buttonLabel: 'Добавить фото',
               ),
-      GymRoomPhase.voting => const _HomeAction(
-        status: 'Работы собраны',
-        buttonLabel: 'Сравнить фотографии',
-      ),
+      GymRoomPhase.voting =>
+        room.hasCompletedVoting
+            ? const _HomeAction(
+                status: 'Работы собраны',
+                detail: 'Вы уже проголосовали',
+                buttonLabel: 'Голосовать',
+                isEnabled: false,
+              )
+            : !room.hasVotingOptions
+            ? const _HomeAction(
+                status: 'Работы собраны',
+                detail: 'Недостаточно работ для голосования',
+                buttonLabel: 'Голосовать',
+                isEnabled: false,
+              )
+            : _HomeAction(
+                status: 'Работы собраны',
+                detail: _votingDeadline(room.deadlineLabel),
+                buttonLabel: 'Голосовать',
+              ),
       GymRoomPhase.results => const _HomeAction(
         status: 'Тренировка завершена',
         buttonLabel: 'Посмотреть итог',
       ),
     };
+  }
+
+  static String _votingDeadline(String deadline) {
+    final normalized = deadline.endsWith('.')
+        ? deadline.substring(0, deadline.length - 1)
+        : deadline;
+    return '$normalized голосования';
   }
 }
 

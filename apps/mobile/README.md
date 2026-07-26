@@ -30,8 +30,13 @@ Current state:
   only completed works, preserving anonymous submission and voting phases.
 - The sign-in screen uses a lightweight animated frame deck and respects
   Reduce Motion.
-- Comparison loads anonymous S3-backed pairs, records a real vote by tapping
-  one of two photos, and avoids the viewer's own work.
+- Comparison loads anonymous S3-backed pairs, uses less aggressive `4:5`
+  previews, keeps both originals available in a full-screen swipe viewer, and
+  records a vote only after the user selects a photo and confirms with
+  "Далее".
+- Challenge selection is grouped in practical order: active submissions,
+  voting, then completed challenges. Room responses persist the current
+  viewer's voting progress so completed voting stays disabled after restart.
 - Outcome loads the real room ranking after voting ends, leads with the user's
   own work, and keeps the wider result collapsed.
 - Raw API and network exception details are converted into human messages.

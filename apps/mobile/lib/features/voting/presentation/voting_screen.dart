@@ -43,6 +43,7 @@ class _VotingScreenState extends State<VotingScreen> {
     }
     _room = room;
     _pair = pair;
+    _votesCount = room?.votingCompleted ?? pair?.completed ?? 0;
   }
 
   void _reload() {
@@ -58,7 +59,7 @@ class _VotingScreenState extends State<VotingScreen> {
           onPressed: () => context.go(AppRoutes.challenges),
           icon: const Icon(Icons.arrow_back),
         ),
-        title: const Text('Сравнение'),
+        title: const Text('Голосование'),
       ),
       body: FutureBuilder<void>(
         future: _loadFuture,
@@ -89,9 +90,8 @@ class _VotingScreenState extends State<VotingScreen> {
           final pair = _pair;
           if (pair == null) {
             return _VotingComplete(
-              roomId: room.id,
               votesCount: _votesCount,
-              demoMode: widget.demoMode,
+              alreadyVoted: room.hasCompletedVoting || _votesCount > 0,
             );
           }
 
@@ -101,31 +101,40 @@ class _VotingScreenState extends State<VotingScreen> {
             total: pair.target,
             selectedSide: _selectedSide,
             isLocked: _isBusy,
-            onVoteLeft: () => _vote('left', pair.leftSubmissionId),
-            onVoteRight: () => _vote('right', pair.rightSubmissionId),
-            onSkip: _skip,
+            onSelectLeft: () => _select('left'),
+            onSelectRight: () => _select('right'),
+            onNext: _submitVote,
+            onOpenFullscreen: (initialPage) =>
+                _openFullscreen(pair, initialPage),
           );
         },
       ),
     );
   }
 
-  Future<void> _vote(String side, String chosenSubmissionId) async {
-    final pair = _pair;
-    if (_isBusy || pair == null) {
+  void _select(String side) {
+    if (_isBusy || _pair == null) {
       return;
     }
-    setState(() {
-      _selectedSide = side;
-      _isBusy = true;
-    });
+    setState(() => _selectedSide = side);
+  }
+
+  Future<void> _submitVote() async {
+    final pair = _pair;
+    final selectedSide = _selectedSide;
+    if (_isBusy || pair == null || selectedSide == null) {
+      return;
+    }
+    final chosenSubmissionId = selectedSide == 'left'
+        ? pair.leftSubmissionId
+        : pair.rightSubmissionId;
+    setState(() => _isBusy = true);
     try {
       await appDependencies.voting.castVote(
         widget.roomId,
         pair,
         chosenSubmissionId,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 220));
       final nextPair = await appDependencies.voting.getNextPair(widget.roomId);
       if (!mounted) {
         return;
@@ -150,32 +159,13 @@ class _VotingScreenState extends State<VotingScreen> {
     }
   }
 
-  Future<void> _skip() async {
-    final pair = _pair;
-    if (_isBusy || pair == null) {
-      return;
-    }
-    setState(() => _isBusy = true);
-    try {
-      await appDependencies.voting.skip(widget.roomId, pair);
-      final nextPair = await appDependencies.voting.getNextPair(widget.roomId);
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _pair = nextPair;
-        _selectedSide = null;
-        _isBusy = false;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isBusy = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
-    }
+  Future<void> _openFullscreen(VotePair pair, int initialPage) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _VotePairViewer(pair: pair, initialPage: initialPage),
+      ),
+    );
   }
 }
 
@@ -186,9 +176,10 @@ class _VotingContent extends StatelessWidget {
     required this.total,
     required this.selectedSide,
     required this.isLocked,
-    required this.onVoteLeft,
-    required this.onVoteRight,
-    required this.onSkip,
+    required this.onSelectLeft,
+    required this.onSelectRight,
+    required this.onNext,
+    required this.onOpenFullscreen,
   });
 
   final VotePair pair;
@@ -196,9 +187,10 @@ class _VotingContent extends StatelessWidget {
   final int total;
   final String? selectedSide;
   final bool isLocked;
-  final VoidCallback onVoteLeft;
-  final VoidCallback onVoteRight;
-  final VoidCallback onSkip;
+  final VoidCallback onSelectLeft;
+  final VoidCallback onSelectRight;
+  final VoidCallback onNext;
+  final ValueChanged<int> onOpenFullscreen;
 
   @override
   Widget build(BuildContext context) {
@@ -224,37 +216,49 @@ class _VotingContent extends StatelessWidget {
               context,
             ).textTheme.bodyMedium?.copyWith(color: AppTheme.mutedInk),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: _PhotoChoice(
-                    semanticsLabel: pair.leftLabel,
-                    mediaUrl: pair.leftMediaUrl,
-                    palette: pair.leftPalette,
-                    selected: selectedSide == 'left',
-                    dimmed: selectedSide == 'right',
-                    onTap: isLocked ? null : onVoteLeft,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 4 / 5,
+                      child: _PhotoChoice(
+                        semanticsLabel: pair.leftLabel,
+                        mediaUrl: pair.leftMediaUrl,
+                        palette: pair.leftPalette,
+                        selected: selectedSide == 'left',
+                        dimmed: selectedSide == 'right',
+                        onTap: isLocked ? null : onSelectLeft,
+                        onOpenFullscreen: () => onOpenFullscreen(0),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _PhotoChoice(
-                    semanticsLabel: pair.rightLabel,
-                    mediaUrl: pair.rightMediaUrl,
-                    palette: pair.rightPalette,
-                    selected: selectedSide == 'right',
-                    dimmed: selectedSide == 'left',
-                    onTap: isLocked ? null : onVoteRight,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 4 / 5,
+                      child: _PhotoChoice(
+                        semanticsLabel: pair.rightLabel,
+                        mediaUrl: pair.rightMediaUrl,
+                        palette: pair.rightPalette,
+                        selected: selectedSide == 'right',
+                        dimmed: selectedSide == 'left',
+                        onTap: isLocked ? null : onSelectRight,
+                        onOpenFullscreen: () => onOpenFullscreen(1),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
-            selectedSide == null ? 'Нажмите на фотографию' : 'Выбор принят',
+            selectedSide == null ? 'Выберите одну фотографию' : 'Выбор сделан',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: selectedSide == null
@@ -263,9 +267,18 @@ class _VotingContent extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          TextButton(
-            onPressed: isLocked ? null : onSkip,
-            child: const Text('Пропустить'),
+          const SizedBox(height: 14),
+          IgnorePointer(
+            ignoring: isLocked || selectedSide == null,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 140),
+              opacity: isLocked || selectedSide == null ? 0.42 : 1,
+              child: GlassButton(
+                key: const ValueKey('submit-vote-button'),
+                label: isLocked ? 'Сохраняем...' : 'Далее',
+                onPressed: onNext,
+              ),
+            ),
           ),
         ],
       ),
@@ -281,6 +294,7 @@ class _PhotoChoice extends StatelessWidget {
     required this.selected,
     required this.dimmed,
     required this.onTap,
+    required this.onOpenFullscreen,
   });
 
   final String semanticsLabel;
@@ -289,6 +303,7 @@ class _PhotoChoice extends StatelessWidget {
   final bool selected;
   final bool dimmed;
   final VoidCallback? onTap;
+  final VoidCallback onOpenFullscreen;
 
   @override
   Widget build(BuildContext context) {
@@ -322,28 +337,48 @@ class _PhotoChoice extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 AuthenticatedMedia(mediaUrl: mediaUrl, fallback: fallback),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 140),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusL),
-                    border: Border.all(
-                      color: selected
-                          ? AppTheme.primaryDark
-                          : Colors.transparent,
-                      width: 4,
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IconButton.filled(
+                    key: ValueKey('fullscreen-$semanticsLabel'),
+                    tooltip: 'Открыть полностью',
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0x99000000),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: onOpenFullscreen,
+                    icon: const Icon(Icons.fullscreen_rounded),
+                  ),
+                ),
+                IgnorePointer(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusL),
+                      border: Border.all(
+                        color: selected
+                            ? AppTheme.primaryDark
+                            : Colors.transparent,
+                        width: 4,
+                      ),
                     ),
                   ),
                 ),
                 if (selected)
-                  const Center(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Icon(Icons.check, color: AppTheme.primaryDark),
+                  const Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(Icons.check, color: AppTheme.primaryDark),
+                        ),
                       ),
                     ),
                   ),
@@ -356,16 +391,151 @@ class _PhotoChoice extends StatelessWidget {
   }
 }
 
-class _VotingComplete extends StatelessWidget {
-  const _VotingComplete({
-    required this.roomId,
-    required this.votesCount,
-    required this.demoMode,
+class _VotePairViewer extends StatefulWidget {
+  const _VotePairViewer({required this.pair, required this.initialPage});
+
+  final VotePair pair;
+  final int initialPage;
+
+  @override
+  State<_VotePairViewer> createState() => _VotePairViewerState();
+}
+
+class _VotePairViewerState extends State<_VotePairViewer> {
+  late final PageController _controller;
+  late int _page;
+
+  @override
+  void initState() {
+    super.initState();
+    _page = widget.initialPage.clamp(0, 1);
+    _controller = PageController(initialPage: _page);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          PageView(
+            key: const ValueKey('vote-fullscreen-viewer'),
+            controller: _controller,
+            onPageChanged: (value) => setState(() => _page = value),
+            children: [
+              _FullscreenVotePhoto(
+                mediaUrl: widget.pair.leftMediaUrl,
+                palette: widget.pair.leftPalette,
+                label: widget.pair.leftLabel,
+              ),
+              _FullscreenVotePhoto(
+                mediaUrl: widget.pair.rightMediaUrl,
+                palette: widget.pair.rightPalette,
+                label: widget.pair.rightLabel,
+              ),
+            ],
+          ),
+          Positioned(
+            left: 12,
+            right: 12,
+            top: 0,
+            child: SafeArea(
+              child: Row(
+                children: [
+                  IconButton.filled(
+                    key: const ValueKey('close-vote-fullscreen'),
+                    tooltip: 'Закрыть',
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0x99000000),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: Navigator.of(context).pop,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                  const Spacer(),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0x99000000),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        '${_page + 1} из 2',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FullscreenVotePhoto extends StatelessWidget {
+  const _FullscreenVotePhoto({
+    required this.mediaUrl,
+    required this.palette,
+    required this.label,
   });
 
-  final String roomId;
+  final String mediaUrl;
+  final VotePhotoPalette palette;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(palette.start),
+            Color(palette.middle),
+            Color(palette.end),
+          ],
+        ),
+      ),
+    );
+    return Semantics(
+      image: true,
+      label: label,
+      child: Center(
+        child: SizedBox.expand(
+          child: AuthenticatedMedia(
+            mediaUrl: mediaUrl,
+            fallback: fallback,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VotingComplete extends StatelessWidget {
+  const _VotingComplete({required this.votesCount, required this.alreadyVoted});
+
   final int votesCount;
-  final bool demoMode;
+  final bool alreadyVoted;
 
   @override
   Widget build(BuildContext context) {
@@ -382,7 +552,7 @@ class _VotingComplete extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Сравнение завершено',
+              alreadyVoted ? 'Вы уже проголосовали' : 'Пар для голосования нет',
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
@@ -390,8 +560,8 @@ class _VotingComplete extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               votesCount == 0
-                  ? 'Новых пар пока нет.'
-                  : 'Вы сделали $votesCount выборов.',
+                  ? 'Здесь появятся пары, когда будет достаточно работ.'
+                  : 'Ваши выборы сохранены: $votesCount.',
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: AppTheme.mutedInk),
@@ -400,9 +570,8 @@ class _VotingComplete extends StatelessWidget {
             SizedBox(
               width: 220,
               child: GlassButton(
-                label: 'Посмотреть итог',
-                onPressed: () =>
-                    context.go(AppRoutes.roomResults(roomId, demo: demoMode)),
+                label: 'К челленджам',
+                onPressed: () => context.go(AppRoutes.challenges),
               ),
             ),
           ],

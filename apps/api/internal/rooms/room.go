@@ -10,17 +10,19 @@ const (
 )
 
 type Room struct {
-	ID                  string
-	ChallengeID         string
-	ChallengeTitle      string
-	ChallengeTheme      string
-	SubmissionStartsAt  time.Time
-	SubmissionEndsAt    time.Time
-	VotingStartsAt      time.Time
-	VotingEndsAt        time.Time
-	ParticipantCount    int
-	Capacity            int
-	ViewerHasSubmission bool
+	ID                   string
+	ChallengeID          string
+	ChallengeTitle       string
+	ChallengeTheme       string
+	SubmissionStartsAt   time.Time
+	SubmissionEndsAt     time.Time
+	VotingStartsAt       time.Time
+	VotingEndsAt         time.Time
+	ParticipantCount     int
+	Capacity             int
+	ViewerHasSubmission  bool
+	ViewerVotesCompleted int
+	ViewerVotesTarget    int
 }
 
 func (r Room) PhaseAt(now time.Time) string {
