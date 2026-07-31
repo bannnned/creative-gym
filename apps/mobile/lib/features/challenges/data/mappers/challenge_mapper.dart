@@ -12,6 +12,7 @@ class ChallengeMapper {
       theme: dto.theme,
       description: dto.description,
       phase: weeklyWorkoutPhaseLabel(dto.phase),
+      stage: _stageFromApi(dto.phase),
       submissionDeadlineLabel: deadlineLabelForPhase(
         apiPhase: dto.phase,
         submissionStartsAt: dto.submissionStartsAt,
@@ -31,8 +32,20 @@ class ChallengeMapper {
       roomId: dto.viewerRoomId ?? '',
       rules: dto.rules,
       isJoined: dto.viewerHasJoined,
+      viewerHasSubmission: dto.viewerHasSubmission,
+      viewerHasVotingOptions: dto.viewerHasVotingOptions,
+      viewerHasCompletedVoting: dto.viewerHasCompletedVoting,
       coverUrl: dto.coverUrl,
       viewerCanEdit: dto.viewerCanEdit,
     );
+  }
+
+  static WeeklyWorkoutStage _stageFromApi(String phase) {
+    return switch (phase) {
+      'submission' => WeeklyWorkoutStage.submission,
+      'voting' => WeeklyWorkoutStage.voting,
+      'results' || 'finished' => WeeklyWorkoutStage.results,
+      _ => WeeklyWorkoutStage.upcoming,
+    };
   }
 }

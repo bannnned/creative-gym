@@ -1,6 +1,7 @@
 import 'package:creative_gym_mobile/core/utils/challenge_labels.dart';
 import 'package:creative_gym_mobile/features/challenges/data/dto/challenge_dto.dart';
 import 'package:creative_gym_mobile/features/challenges/data/mappers/challenge_mapper.dart';
+import 'package:creative_gym_mobile/features/challenges/domain/weekly_workout.dart';
 import 'package:creative_gym_mobile/features/rooms/domain/gym_room.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,6 +25,9 @@ void main() {
         roomCapacity: 16,
         viewerRoomId: 'room-1',
         viewerHasJoined: true,
+        viewerHasSubmission: true,
+        viewerHasVotingOptions: true,
+        viewerHasCompletedVoting: false,
         coverUrl: '/api/v1/challenges/challenge-1/cover?v=1',
         viewerCanEdit: true,
       ),
@@ -34,6 +38,8 @@ void main() {
     expect(workout.phase, 'Прием работ');
     expect(workout.roomId, 'room-1');
     expect(workout.isJoined, isTrue);
+    expect(workout.viewerHasSubmission, isTrue);
+    expect(workout.nextAction, ChallengeNextAction.waitForVoting);
     expect(workout.participantsLabel, '12 участников');
     expect(workout.coverUrl, contains('/cover'));
     expect(workout.viewerCanEdit, isTrue);

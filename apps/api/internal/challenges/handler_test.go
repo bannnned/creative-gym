@@ -35,18 +35,21 @@ func TestListActive(t *testing.T) {
 			}
 
 			return []Challenge{{
-				ID:                 "challenge-id",
-				Kind:               "photo",
-				Title:              "Morning Light",
-				Theme:              "Light and Shadow",
-				Description:        "Description",
-				Rules:              []string{"Submit one photo."},
-				Status:             "submitting",
-				SubmissionStartsAt: base.Add(-24 * time.Hour),
-				SubmissionEndsAt:   base.Add(24 * time.Hour),
-				VotingStartsAt:     base.Add(24 * time.Hour),
-				VotingEndsAt:       base.Add(72 * time.Hour),
-				RoomCapacity:       16,
+				ID:                     "challenge-id",
+				Kind:                   "photo",
+				Title:                  "Morning Light",
+				Theme:                  "Light and Shadow",
+				Description:            "Description",
+				Rules:                  []string{"Submit one photo."},
+				Status:                 "submitting",
+				SubmissionStartsAt:     base.Add(-24 * time.Hour),
+				SubmissionEndsAt:       base.Add(24 * time.Hour),
+				VotingStartsAt:         base.Add(24 * time.Hour),
+				VotingEndsAt:           base.Add(72 * time.Hour),
+				RoomCapacity:           16,
+				ViewerHasJoined:        true,
+				ViewerHasSubmission:    true,
+				ViewerHasVotingOptions: true,
 			}}, nil
 		},
 	}, testWriteJSON, testWriteAPIError)
@@ -73,6 +76,12 @@ func TestListActive(t *testing.T) {
 
 	if got := body.Challenges[0].Phase; got != PhaseSubmission {
 		t.Fatalf("phase = %q, want %q", got, PhaseSubmission)
+	}
+	if !body.Challenges[0].ViewerHasSubmission {
+		t.Fatal("viewer_has_submission = false, want true")
+	}
+	if !body.Challenges[0].ViewerHasVotingOptions {
+		t.Fatal("viewer_has_voting_options = false, want true")
 	}
 }
 

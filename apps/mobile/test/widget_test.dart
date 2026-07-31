@@ -13,19 +13,74 @@ void main() {
   });
 
   Future<void> openChallenges(WidgetTester tester) async {
+    // Recreate the app so routes and modal sheets from a previous widget test
+    // cannot leak into this scenario.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
     await tester.pumpWidget(const CreativeGymApp());
     await tester.tap(find.byKey(const ValueKey('continue-button')));
     await tester.pumpAndSettle();
   }
 
   Future<void> chooseWorkout(WidgetTester tester, String title) async {
-    final titleFinder = find.text(title);
+    final challengeId = switch (title) {
+      'Утренний свет' => 'morning-light',
+      'Тихое движение' => 'quiet-motion',
+      'Вечерние контуры' => 'evening-shapes',
+      _ => throw ArgumentError.value(title, 'title'),
+    };
+    var cardFinder = find.byKey(ValueKey('challenge-card-$challengeId'));
+    if (challengeId == 'evening-shapes') {
+      final completedButton = find.byKey(
+        const ValueKey('completed-challenges-button'),
+      );
+      for (
+        var attempt = 0;
+        attempt < 8 && completedButton.evaluate().isEmpty;
+        attempt++
+      ) {
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, -280));
+        await tester.pumpAndSettle();
+      }
+      if (completedButton.evaluate().isNotEmpty) {
+        await tester.scrollUntilVisible(
+          completedButton,
+          220,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(completedButton);
+        await tester.pumpAndSettle();
+        cardFinder = find.byKey(ValueKey('challenge-card-$challengeId'));
+        for (
+          var attempt = 0;
+          attempt < 6 && cardFinder.evaluate().isEmpty;
+          attempt++
+        ) {
+          await tester.drag(
+            find.byType(Scrollable).first,
+            const Offset(0, -280),
+          );
+          await tester.pumpAndSettle();
+        }
+      }
+    } else {
+      for (
+        var attempt = 0;
+        attempt < 8 && cardFinder.evaluate().isEmpty;
+        attempt++
+      ) {
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, -220));
+        await tester.pumpAndSettle();
+      }
+    }
     await tester.scrollUntilVisible(
-      titleFinder,
+      cardFinder,
       260,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(titleFinder);
+    await tester.ensureVisible(cardFinder);
+    await tester.pumpAndSettle();
+    await tester.tap(cardFinder);
     await tester.pumpAndSettle();
   }
 
@@ -56,23 +111,51 @@ void main() {
     expect(find.text('Утренний свет'), findsOneWidget);
     expect(find.text('Тихое движение'), findsOneWidget);
     expect(find.text('Осталось 3 дня'), findsOneWidget);
-    expect(find.text('Активные'), findsOneWidget);
-    expect(find.text('Голосование'), findsOneWidget);
-    expect(find.text('Завершённые'), findsOneWidget);
-    expect(find.text('Другие задания'), findsNothing);
-
-    final firstCardTop = tester.getTopLeft(
-      find.byKey(const ValueKey('challenge-card-morning-light')),
+    expect(find.text('Сейчас'), findsOneWidget);
+    expect(find.text('Другие челленджи'), findsOneWidget);
+    expect(find.text('Работы собраны'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('challenge-action-quiet-motion')),
+      findsOneWidget,
     );
-    expect(firstCardTop.dy, greaterThan(64));
+    expect(find.text('Завершённые'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('challenge-card-evening-shapes')),
+      findsNothing,
+    );
+
     final votingCardTop = tester.getTopLeft(
       find.byKey(const ValueKey('challenge-card-quiet-motion')),
     );
-    final completedCardTop = tester.getTopLeft(
-      find.byKey(const ValueKey('challenge-card-evening-shapes')),
+    expect(votingCardTop.dy, greaterThan(64));
+    final openCardTop = tester.getTopLeft(
+      find.byKey(const ValueKey('challenge-card-morning-light')),
     );
-    expect(votingCardTop.dy, greaterThan(firstCardTop.dy));
-    expect(completedCardTop.dy, greaterThan(votingCardTop.dy));
+    expect(openCardTop.dy, greaterThan(votingCardTop.dy));
+
+    await tester.tap(find.byKey(const ValueKey('completed-challenges-button')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('challenge-card-evening-shapes')),
+      findsOneWidget,
+    );
+    Navigator.of(
+      tester.element(find.byKey(const ValueKey('completed-challenges-list'))),
+    ).pop();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('main action opens the next step directly', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await openChallenges(tester);
+    await tester.tap(
+      find.byKey(const ValueKey('challenge-action-quiet-motion')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Какой кадр сильнее?'), findsOneWidget);
   });
 
   testWidgets('challenge card opens one focused assignment', (tester) async {

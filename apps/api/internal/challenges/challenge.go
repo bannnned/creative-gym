@@ -10,24 +10,27 @@ const (
 )
 
 type Challenge struct {
-	ID                 string
-	CreatedByUserID    *string
-	Kind               string
-	Title              string
-	Theme              string
-	Description        string
-	Rules              []string
-	Status             string
-	SubmissionStartsAt time.Time
-	SubmissionEndsAt   time.Time
-	VotingStartsAt     time.Time
-	VotingEndsAt       time.Time
-	ParticipantCount   int
-	RoomCapacity       int
-	ViewerRoomID       *string
-	ViewerHasJoined    bool
-	ViewerCanEdit      bool
-	CoverUpdatedAt     *time.Time
+	ID                       string
+	CreatedByUserID          *string
+	Kind                     string
+	Title                    string
+	Theme                    string
+	Description              string
+	Rules                    []string
+	Status                   string
+	SubmissionStartsAt       time.Time
+	SubmissionEndsAt         time.Time
+	VotingStartsAt           time.Time
+	VotingEndsAt             time.Time
+	ParticipantCount         int
+	RoomCapacity             int
+	ViewerRoomID             *string
+	ViewerHasJoined          bool
+	ViewerHasSubmission      bool
+	ViewerHasVotingOptions   bool
+	ViewerHasCompletedVoting bool
+	ViewerCanEdit            bool
+	CoverUpdatedAt           *time.Time
 }
 
 func (c Challenge) PhaseAt(now time.Time) string {

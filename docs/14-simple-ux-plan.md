@@ -39,20 +39,27 @@ Each screen has at most one visually dominant action. A secondary action may
 be shown as text. Destructive or infrequent actions belong in an overflow
 menu.
 
-### Minimal challenge choice
+### Action-oriented challenge home
 
-The first screen after sign in is a vertical list of challenge covers. A card
-contains only:
+The first screen after sign in answers three questions without relying on
+onboarding: what is happening, what the viewer should do, and by when.
+
+The first cover is personalized and labelled `Сейчас`. It contains:
 
 - the author's cover image;
 - challenge title;
-- time remaining or the current terminal state.
+- one short viewer-specific state such as `Ждём твою фотографию`;
+- the relevant deadline;
+- one explicit action such as `Загрузить фото`, `Голосовать`, or
+  `Посмотреть итог`.
 
-The whole card is one tap target. Description, participant count, room size,
-icons, and separate call-to-action buttons do not appear inside it.
+The action opens the required step directly. Tapping the rest of the cover
+opens challenge details. Other current challenges appear below with the same
+short action language. Completed challenges stay behind one compact archive
+row and open in a separate sheet.
 
-Selecting a card opens one focused challenge. Back navigation returns to the
-choice screen.
+Descriptions, participant counts, room size, and implementation terminology
+do not appear on the home cards.
 
 ### Only actionable information
 
@@ -217,7 +224,8 @@ language.
 ## Definition Of Done
 
 - sign in opens the challenge choice screen;
-- each challenge card contains only cover, title, and remaining time;
+- the first challenge card clearly states the viewer's next action;
+- completed challenges stay behind a compact archive entry;
 - selecting a card opens one focused challenge;
 - every primary screen has one dominant action;
 - all primary navigation and copy are Russian;

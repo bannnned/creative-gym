@@ -119,14 +119,7 @@ SELECT
     ORDER BY r.created_at ASC
     LIMIT 1
   ), 16) AS room_capacity,
-  (
-    SELECT r.id::text
-    FROM rooms r
-    JOIN room_members rm ON rm.room_id = r.id
-    WHERE r.challenge_id = c.id AND rm.user_id = $1
-    ORDER BY rm.joined_at ASC
-    LIMIT 1
-  ) AS viewer_room_id,
+  viewer_room.id,
   cc.updated_at AS cover_updated_at,
   (
     COALESCE(c.created_by_user_id = $1, false)
@@ -134,9 +127,59 @@ SELECT
       SELECT 1 FROM users viewer
       WHERE viewer.id = $1 AND viewer.is_admin = true
     )
-  ) AS viewer_can_edit
+  ) AS viewer_can_edit,
+  COALESCE(viewer_room.has_submission, false) AS viewer_has_submission,
+  COALESCE(viewer_room.eligible_submission_count > 1, false)
+    AS viewer_has_voting_options,
+  COALESCE(
+    viewer_room.eligible_submission_count > 1
+    AND viewer_room.votes_completed >= LEAST(
+      10,
+      viewer_room.eligible_submission_count
+        * (viewer_room.eligible_submission_count - 1) / 2
+    ),
+    false
+  ) AS viewer_has_completed_voting
 FROM challenges c
 LEFT JOIN challenge_covers cc ON cc.challenge_id = c.id
+LEFT JOIN LATERAL (
+  SELECT
+    r.id::text AS id,
+    EXISTS (
+      SELECT 1
+      FROM submissions s
+      WHERE s.room_id = r.id
+        AND s.user_id = $1
+        AND s.status = 'active'
+        AND s.deleted_at IS NULL
+    ) AS has_submission,
+    (
+      SELECT count(*)::int
+      FROM votes v
+      WHERE v.room_id = r.id
+        AND v.voter_user_id = $1
+    ) AS votes_completed,
+    (
+      SELECT count(*)::int
+      FROM submissions s
+      WHERE s.room_id = r.id
+        AND s.user_id <> $1
+        AND s.status = 'active'
+        AND s.deleted_at IS NULL
+        AND EXISTS (
+          SELECT 1
+          FROM media_objects m
+          WHERE m.submission_id = s.id
+            AND m.status = 'uploaded'
+            AND m.deleted_at IS NULL
+        )
+    ) AS eligible_submission_count
+  FROM rooms r
+  JOIN room_members rm ON rm.room_id = r.id AND rm.user_id = $1
+  WHERE r.challenge_id = c.id
+  ORDER BY rm.joined_at ASC
+  LIMIT 1
+) viewer_room ON true
 ` + whereClause
 }
 
@@ -184,6 +227,9 @@ func scanChallenge(row challengeScanner) (Challenge, error) {
 		&challenge.ViewerRoomID,
 		&challenge.CoverUpdatedAt,
 		&challenge.ViewerCanEdit,
+		&challenge.ViewerHasSubmission,
+		&challenge.ViewerHasVotingOptions,
+		&challenge.ViewerHasCompletedVoting,
 	)
 	if err != nil {
 		return Challenge{}, err

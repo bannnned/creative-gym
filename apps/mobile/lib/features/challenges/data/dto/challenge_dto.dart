@@ -16,6 +16,9 @@ class ChallengeDto {
     required this.roomCapacity,
     required this.viewerRoomId,
     required this.viewerHasJoined,
+    required this.viewerHasSubmission,
+    required this.viewerHasVotingOptions,
+    required this.viewerHasCompletedVoting,
     required this.coverUrl,
     required this.viewerCanEdit,
   });
@@ -36,6 +39,9 @@ class ChallengeDto {
   final int roomCapacity;
   final String? viewerRoomId;
   final bool viewerHasJoined;
+  final bool viewerHasSubmission;
+  final bool viewerHasVotingOptions;
+  final bool viewerHasCompletedVoting;
   final String? coverUrl;
   final bool viewerCanEdit;
 
@@ -61,6 +67,11 @@ class ChallengeDto {
       roomCapacity: json['room_capacity'] as int? ?? 16,
       viewerRoomId: json['viewer_room_id'] as String?,
       viewerHasJoined: json['viewer_has_joined'] as bool? ?? false,
+      viewerHasSubmission: json['viewer_has_submission'] as bool? ?? false,
+      viewerHasVotingOptions:
+          json['viewer_has_voting_options'] as bool? ?? false,
+      viewerHasCompletedVoting:
+          json['viewer_has_completed_voting'] as bool? ?? false,
       coverUrl: json['cover_url'] as String?,
       viewerCanEdit: json['viewer_can_edit'] as bool? ?? false,
     );

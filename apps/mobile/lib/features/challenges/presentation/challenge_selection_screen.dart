@@ -9,6 +9,7 @@ import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
 import 'package:creative_gym_mobile/features/challenges/domain/weekly_workout.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_glass_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/async_state_panel.dart';
+import 'package:creative_gym_mobile/shared/widgets/glass_panel.dart';
 import 'package:creative_gym_mobile/shared/widgets/onboarding_coach_mark.dart';
 import 'package:creative_gym_mobile/shared/widgets/soft_memory_image.dart';
 import 'package:flutter/material.dart';
@@ -47,6 +48,47 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
     if (mounted) {
       _reload();
     }
+  }
+
+  Future<void> _performAction(WeeklyWorkout workout) async {
+    final location = switch (workout.nextAction) {
+      ChallengeNextAction.upload when workout.roomId.isNotEmpty =>
+        AppRoutes.roomUpload(workout.roomId),
+      ChallengeNextAction.vote when workout.roomId.isNotEmpty =>
+        AppRoutes.roomVote(workout.roomId),
+      ChallengeNextAction.viewResults when workout.roomId.isNotEmpty =>
+        AppRoutes.roomResults(workout.roomId),
+      _ => AppRoutes.challengeDetails(workout.id),
+    };
+
+    await context.push(location);
+    if (mounted) {
+      _reload();
+    }
+  }
+
+  Future<void> _openCompletedChallenges(
+    List<WeeklyWorkout> completed,
+    List<WeeklyWorkout> allWorkouts,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => _CompletedChallengesSheet(
+        workouts: completed,
+        paletteIndexFor: allWorkouts.indexOf,
+        onOpen: (workout) {
+          Navigator.pop(sheetContext);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              unawaited(_openChallenge(workout));
+            }
+          });
+        },
+      ),
+    );
   }
 
   Future<void> _openProfile() async {
@@ -180,13 +222,27 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
             );
           }
 
-          final sections = _sectionsFor(workouts);
-          final activeSection = sections
-              .where((section) => section.key == 'active')
-              .firstOrNull;
-          final onboardingWorkout =
-              activeSection?.workouts.firstOrNull ?? workouts.firstOrNull;
-          _scheduleOnboarding(onboardingWorkout);
+          final primaryWorkout = _primaryWorkout(workouts);
+          final otherWorkouts =
+              workouts
+                  .where(
+                    (workout) =>
+                        workout.id != primaryWorkout.id &&
+                        workout.stage != WeeklyWorkoutStage.results,
+                  )
+                  .toList()
+                ..sort(
+                  (left, right) =>
+                      left.homePriority.compareTo(right.homePriority),
+                );
+          final completedWorkouts = workouts
+              .where(
+                (workout) =>
+                    workout.id != primaryWorkout.id &&
+                    workout.stage == WeeklyWorkoutStage.results,
+              )
+              .toList(growable: false);
+          _scheduleOnboarding(primaryWorkout);
           return AsyncContentTransition(
             stateKey: 'content',
             child: RefreshIndicator(
@@ -198,32 +254,41 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
                 key: const ValueKey('challenge-list'),
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
                 children: [
-                  for (final section in sections) ...[
-                    Padding(
-                      key: ValueKey('challenge-section-${section.key}'),
-                      padding: const EdgeInsets.only(top: 6, bottom: 12),
-                      child: Text(
-                        section.title,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: AppTheme.ink,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
+                  const _SectionTitle(
+                    key: ValueKey('current-challenge-section'),
+                    title: 'Сейчас',
+                  ),
+                  _ChallengeCard(
+                    key: _onboardingTargetActive ? _challengeTargetKey : null,
+                    workout: primaryWorkout,
+                    paletteIndex: workouts.indexOf(primaryWorkout),
+                    featured: true,
+                    onTap: () => _openChallenge(primaryWorkout),
+                    onAction: () => _performAction(primaryWorkout),
+                  ),
+                  if (otherWorkouts.isNotEmpty) ...[
+                    const SizedBox(height: 28),
+                    const _SectionTitle(
+                      key: ValueKey('other-challenges-section'),
+                      title: 'Другие челленджи',
                     ),
-                    for (final workout in section.workouts) ...[
+                    for (final workout in otherWorkouts) ...[
                       _ChallengeCard(
-                        key:
-                            _onboardingTargetActive &&
-                                workout.id == onboardingWorkout?.id
-                            ? _challengeTargetKey
-                            : null,
                         workout: workout,
                         paletteIndex: workouts.indexOf(workout),
                         onTap: () => _openChallenge(workout),
+                        onAction: () => _performAction(workout),
                       ),
                       const SizedBox(height: 16),
                     ],
+                  ],
+                  if (completedWorkouts.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _CompletedChallengesRow(
+                      count: completedWorkouts.length,
+                      onTap: () =>
+                          _openCompletedChallenges(completedWorkouts, workouts),
+                    ),
                   ],
                 ],
               ),
@@ -234,56 +299,113 @@ class _ChallengeSelectionScreenState extends State<ChallengeSelectionScreen> {
     );
   }
 
-  List<_ChallengeSection> _sectionsFor(List<WeeklyWorkout> workouts) {
-    final active =
-        workouts
-            .where((workout) => !_isVoting(workout) && !_isCompleted(workout))
-            .toList()
-          ..sort((left, right) {
-            final leftUpcoming = left.phase.toLowerCase().contains('скоро');
-            final rightUpcoming = right.phase.toLowerCase().contains('скоро');
-            return (leftUpcoming ? 1 : 0).compareTo(rightUpcoming ? 1 : 0);
-          });
-    final voting = workouts.where(_isVoting).toList();
-    final completed = workouts.where(_isCompleted).toList();
-
-    return [
-      if (active.isNotEmpty)
-        _ChallengeSection(key: 'active', title: 'Активные', workouts: active),
-      if (voting.isNotEmpty)
-        _ChallengeSection(
-          key: 'voting',
-          title: 'Голосование',
-          workouts: voting,
-        ),
-      if (completed.isNotEmpty)
-        _ChallengeSection(
-          key: 'completed',
-          title: 'Завершённые',
-          workouts: completed,
-        ),
-    ];
-  }
-
-  bool _isVoting(WeeklyWorkout workout) =>
-      workout.phase.toLowerCase().contains('голос');
-
-  bool _isCompleted(WeeklyWorkout workout) {
-    final phase = workout.phase.toLowerCase();
-    return phase.contains('результат') || phase.contains('заверш');
+  WeeklyWorkout _primaryWorkout(List<WeeklyWorkout> workouts) {
+    final current = workouts
+        .where((workout) => workout.stage != WeeklyWorkoutStage.results)
+        .toList();
+    final candidates = current.isNotEmpty ? current : workouts.toList();
+    candidates.sort((left, right) {
+      final priority = left.homePriority.compareTo(right.homePriority);
+      if (priority != 0) {
+        return priority;
+      }
+      return workouts.indexOf(left).compareTo(workouts.indexOf(right));
+    });
+    return candidates.first;
   }
 }
 
-class _ChallengeSection {
-  const _ChallengeSection({
-    required this.key,
-    required this.title,
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({super.key, required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 12),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppTheme.ink,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _CompletedChallengesRow extends StatelessWidget {
+  const _CompletedChallengesRow({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      padding: EdgeInsets.zero,
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          key: const ValueKey('completed-challenges-button'),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 18,
+            vertical: 2,
+          ),
+          title: const Text(
+            'Завершённые',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          subtitle: Text('$count ${count == 1 ? 'челлендж' : 'челленджа'}'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
+}
+
+class _CompletedChallengesSheet extends StatelessWidget {
+  const _CompletedChallengesSheet({
     required this.workouts,
+    required this.paletteIndexFor,
+    required this.onOpen,
   });
 
-  final String key;
-  final String title;
   final List<WeeklyWorkout> workouts;
+  final int Function(WeeklyWorkout workout) paletteIndexFor;
+  final ValueChanged<WeeklyWorkout> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      heightFactor: 0.9,
+      child: ListView(
+        key: const ValueKey('completed-challenges-list'),
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+        children: [
+          Text(
+            'Завершённые',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: AppTheme.ink,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 16),
+          for (final workout in workouts) ...[
+            _ChallengeCard(
+              workout: workout,
+              paletteIndex: paletteIndexFor(workout),
+              onTap: () => onOpen(workout),
+              onAction: () => onOpen(workout),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _ChallengeCard extends StatefulWidget {
@@ -292,11 +414,15 @@ class _ChallengeCard extends StatefulWidget {
     required this.workout,
     required this.paletteIndex,
     required this.onTap,
+    required this.onAction,
+    this.featured = false,
   });
 
   final WeeklyWorkout workout;
   final int paletteIndex;
   final VoidCallback onTap;
+  final VoidCallback onAction;
+  final bool featured;
 
   @override
   State<_ChallengeCard> createState() => _ChallengeCardState();
@@ -327,7 +453,8 @@ class _ChallengeCardState extends State<_ChallengeCard> {
           button: true,
           label:
               '${widget.workout.title}. '
-              '${widget.workout.submissionDeadlineLabel}',
+              '${widget.workout.guidanceLabel}. '
+              '${widget.workout.actionLabel}',
           child: Material(
             color: Colors.transparent,
             borderRadius: radius,
@@ -336,7 +463,7 @@ class _ChallengeCardState extends State<_ChallengeCard> {
               key: ValueKey('challenge-card-${widget.workout.id}'),
               onTap: widget.onTap,
               child: AspectRatio(
-                aspectRatio: 16 / 10,
+                aspectRatio: widget.featured ? 16 / 11 : 16 / 10,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -371,6 +498,32 @@ class _ChallengeCardState extends State<_ChallengeCard> {
                         ),
                       ),
                     ),
+                    if (widget.featured)
+                      Positioned(
+                        left: 18,
+                        top: 18,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: const Color(0xD9FFFFFF),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 11,
+                              vertical: 6,
+                            ),
+                            child: Text(
+                              'ГЛАВНОЕ СЕЙЧАС',
+                              style: TextStyle(
+                                color: AppTheme.primaryDark,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.7,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     Positioned(
                       left: 20,
                       right: 20,
@@ -398,7 +551,7 @@ class _ChallengeCardState extends State<_ChallengeCard> {
                           ),
                           const SizedBox(height: 7),
                           Text(
-                            widget.workout.submissionDeadlineLabel,
+                            widget.workout.guidanceLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.bodyMedium
@@ -406,6 +559,55 @@ class _ChallengeCardState extends State<_ChallengeCard> {
                                   color: const Color(0xE6FFFFFF),
                                   fontWeight: FontWeight.w600,
                                 ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  widget.workout.submissionDeadlineLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: const Color(0xCCFFFFFF),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              FilledButton(
+                                key: ValueKey(
+                                  'challenge-action-${widget.workout.id}',
+                                ),
+                                onPressed: widget.onAction,
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size(0, 40),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 15,
+                                  ),
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: AppTheme.primaryDark,
+                                  elevation: 0,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  textStyle: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(widget.workout.actionLabel),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 17,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
