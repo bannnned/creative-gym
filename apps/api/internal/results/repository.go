@@ -150,9 +150,9 @@ func (r *Repository) getProfile(
 	profile.IsCurrentUser = isCurrentUser
 	var avatarSource string
 	err := r.pool.QueryRow(ctx, `
-SELECT display_name, COALESCE(avatar_url, '')
+SELECT display_name, COALESCE(avatar_url, ''), email_verified_at IS NOT NULL
 FROM users
-WHERE id = $1`, userID).Scan(&profile.DisplayName, &avatarSource)
+WHERE id = $1`, userID).Scan(&profile.DisplayName, &avatarSource, &profile.EmailVerified)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Profile{}, ErrProfileNotFound
@@ -232,7 +232,12 @@ ORDER BY created_at DESC`, userID, finishedOnly)
 			return Profile{}, fmt.Errorf("scan profile work: %w", err)
 		}
 		profile.Works = append(profile.Works, work)
-		profile.Points += pointsForWork(work)
+		prizePoints := prizePointsForWork(work)
+		if profile.EmailVerified || prizePoints == 0 {
+			profile.Points += pointsForWork(work)
+		} else {
+			profile.PendingPrizePoints += prizePoints
+		}
 		if work.Place != nil {
 			switch *work.Place {
 			case 1:
@@ -246,6 +251,9 @@ ORDER BY created_at DESC`, userID, finishedOnly)
 	}
 	if err := rows.Err(); err != nil {
 		return Profile{}, fmt.Errorf("iterate profile works: %w", err)
+	}
+	if !isCurrentUser {
+		profile.PendingPrizePoints = 0
 	}
 	return profile, nil
 }

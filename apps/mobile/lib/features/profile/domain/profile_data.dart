@@ -4,6 +4,8 @@ class ProfileData {
     this.displayName = 'Участник',
     this.avatarUrl = '',
     this.isCurrentUser = true,
+    this.emailVerified = true,
+    this.pendingPrizePoints = 0,
     required this.points,
     required this.firstPlaces,
     required this.secondPlaces,
@@ -15,6 +17,8 @@ class ProfileData {
   final String displayName;
   final String avatarUrl;
   final bool isCurrentUser;
+  final bool emailVerified;
+  final int pendingPrizePoints;
   final int points;
   final int firstPlaces;
   final int secondPlaces;

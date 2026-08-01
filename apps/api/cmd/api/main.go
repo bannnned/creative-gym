@@ -39,6 +39,12 @@ func main() {
 		cfg.S3.Enabled(),
 		"s3_complete",
 		cfg.S3.Complete(),
+		"email_auth",
+		cfg.Auth.EmailComplete(),
+		"yandex_auth",
+		cfg.Auth.YandexComplete(),
+		"passkey_auth",
+		cfg.Auth.PasskeyComplete(),
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

@@ -37,15 +37,17 @@ type ProfileWork struct {
 }
 
 type Profile struct {
-	UserID        string
-	DisplayName   string
-	AvatarURL     string
-	IsCurrentUser bool
-	Points        int
-	FirstPlaces   int
-	SecondPlaces  int
-	ThirdPlaces   int
-	Works         []ProfileWork
+	UserID             string
+	DisplayName        string
+	AvatarURL          string
+	IsCurrentUser      bool
+	Points             int
+	FirstPlaces        int
+	SecondPlaces       int
+	ThirdPlaces        int
+	EmailVerified      bool
+	PendingPrizePoints int
+	Works              []ProfileWork
 }
 
 func pointsForWork(work ProfileWork) int {
@@ -64,5 +66,21 @@ func pointsForWork(work ProfileWork) int {
 		return 30
 	default:
 		return 10
+	}
+}
+
+func prizePointsForWork(work ProfileWork) int {
+	if !work.Finished || work.Place == nil {
+		return 0
+	}
+	switch *work.Place {
+	case 1:
+		return 100
+	case 2:
+		return 60
+	case 3:
+		return 30
+	default:
+		return 0
 	}
 }

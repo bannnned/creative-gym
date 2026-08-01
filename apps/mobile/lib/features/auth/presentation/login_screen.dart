@@ -5,6 +5,7 @@ import 'package:creative_gym_mobile/app/app_theme.dart';
 import 'package:creative_gym_mobile/core/app_dependencies.dart';
 import 'package:creative_gym_mobile/core/config/app_config.dart';
 import 'package:creative_gym_mobile/core/errors/user_error_message.dart';
+import 'package:creative_gym_mobile/features/auth/presentation/login_methods_sheet.dart';
 import 'package:creative_gym_mobile/shared/widgets/app_scaffold.dart';
 import 'package:creative_gym_mobile/shared/widgets/glass_button.dart';
 import 'package:flutter/foundation.dart';
@@ -77,6 +78,22 @@ class _LoginScreenState extends State<LoginScreen>
         _errorMessage = userErrorMessage(error);
       });
     }
+  }
+
+  Future<void> _openSignIn() async {
+    if (_checkingSession || _signingIn) return;
+    final result = await showLoginMethods(context);
+    if (!mounted || result == null) return;
+    if (result == LoginMethodResult.emailSent) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Письмо отправлено. Можно продолжать — подтвердите почту позже.',
+          ),
+        ),
+      );
+    }
+    context.go(AppRoutes.challenges);
   }
 
   @override
@@ -164,6 +181,12 @@ class _LoginScreenState extends State<LoginScreen>
                         : 'Начать',
                     onPressed: _continue,
                   ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  key: const ValueKey('sign-in-button'),
+                  onPressed: _openSignIn,
+                  child: const Text('Уже есть аккаунт? Войти'),
                 ),
                 if (kDebugMode) ...[
                   const SizedBox(height: 10),

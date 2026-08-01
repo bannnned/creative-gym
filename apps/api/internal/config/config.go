@@ -25,6 +25,24 @@ type Config struct {
 	WebStaticDir        string
 	BuildCommit         string
 	S3                  S3Config
+	Auth                AuthConfig
+}
+
+type AuthConfig struct {
+	PublicBaseURL      string
+	AppCallbackURL     string
+	YandexClientID     string
+	YandexClientSecret string
+	SMTPHost           string
+	SMTPPort           string
+	SMTPUsername       string
+	SMTPPassword       string
+	SMTPFrom           string
+	PasskeyRPID        string
+	PasskeyRPName      string
+	PasskeyOrigins     []string
+	AndroidPackageName string
+	AndroidCerts       []string
 }
 
 type S3Config struct {
@@ -51,7 +69,35 @@ func Load() Config {
 			AccessKey: getEnvOrHex("S3_ACCESS_KEY", "S3_ACCESS_KEY_HEX"),
 			SecretKey: getEnvOrHex("S3_SECRET_KEY", "S3_SECRET_KEY_HEX"),
 		},
+		Auth: AuthConfig{
+			PublicBaseURL:      strings.TrimRight(getEnv("PUBLIC_BASE_URL", "http://localhost:8080"), "/"),
+			AppCallbackURL:     getEnv("AUTH_APP_CALLBACK_URL", "creativegym://auth/complete"),
+			YandexClientID:     strings.TrimSpace(os.Getenv("YANDEX_CLIENT_ID")),
+			YandexClientSecret: getEnvOrHex("YANDEX_CLIENT_SECRET", "YANDEX_CLIENT_SECRET_HEX"),
+			SMTPHost:           strings.TrimSpace(os.Getenv("SMTP_HOST")),
+			SMTPPort:           getEnv("SMTP_PORT", "587"),
+			SMTPUsername:       strings.TrimSpace(os.Getenv("SMTP_USERNAME")),
+			SMTPPassword:       getEnvOrHex("SMTP_PASSWORD", "SMTP_PASSWORD_HEX"),
+			SMTPFrom:           strings.TrimSpace(os.Getenv("SMTP_FROM")),
+			PasskeyRPID:        strings.TrimSpace(os.Getenv("PASSKEY_RP_ID")),
+			PasskeyRPName:      getEnv("PASSKEY_RP_NAME", "Creative Gym"),
+			PasskeyOrigins:     splitCSV(os.Getenv("PASSKEY_ORIGINS")),
+			AndroidPackageName: getEnv("ANDROID_PACKAGE_NAME", "com.creativegym.mobile"),
+			AndroidCerts:       splitCSV(os.Getenv("ANDROID_SHA256_CERT_FINGERPRINTS")),
+		},
 	}
+}
+
+func (c AuthConfig) EmailComplete() bool {
+	return c.PublicBaseURL != "" && c.SMTPHost != "" && c.SMTPFrom != ""
+}
+
+func (c AuthConfig) YandexComplete() bool {
+	return c.PublicBaseURL != "" && c.AppCallbackURL != "" && c.YandexClientID != ""
+}
+
+func (c AuthConfig) PasskeyComplete() bool {
+	return c.PasskeyRPID != "" && c.PasskeyRPName != "" && len(c.PasskeyOrigins) > 0
 }
 
 func (c Config) Validate() error {

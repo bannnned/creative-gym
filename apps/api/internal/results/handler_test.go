@@ -110,6 +110,24 @@ func TestProfilePoints(t *testing.T) {
 	}
 }
 
+func TestUnverifiedEmailWithholdsOnlyPrizePoints(t *testing.T) {
+	first, fourth := 1, 4
+	works := []ProfileWork{
+		{Finished: true, Place: &first},
+		{Finished: true, Place: &fourth},
+		{Finished: false},
+	}
+	var points, pending int
+	for _, work := range works {
+		prize := prizePointsForWork(work)
+		points += pointsForWork(work) - prize
+		pending += prize
+	}
+	if points != 10 || pending != 100 {
+		t.Fatalf("points = %d pending = %d, want 10 and 100", points, pending)
+	}
+}
+
 func testWriteJSON(w http.ResponseWriter, statusCode int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)

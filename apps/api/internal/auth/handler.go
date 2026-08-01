@@ -5,6 +5,10 @@ import (
 	"encoding/base64"
 	"net/http"
 	"time"
+
+	"creative-gym/apps/api/internal/config"
+	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/go-webauthn/webauthn/webauthn"
 )
 
 const (
@@ -21,6 +25,11 @@ type Handler struct {
 	writeAPIError APIErrorWriter
 	now           func() time.Time
 	newToken      func() (string, error)
+	accounts      *Repository
+	settings      config.AuthConfig
+	mailer        Mailer
+	webAuthn      *webauthn.WebAuthn
+	httpClient    *http.Client
 }
 
 type guestSessionResponse struct {
@@ -30,9 +39,13 @@ type guestSessionResponse struct {
 }
 
 type userResponse struct {
-	ID          string `json:"id"`
-	DisplayName string `json:"display_name"`
-	IsGuest     bool   `json:"is_guest"`
+	ID            string `json:"id"`
+	DisplayName   string `json:"display_name"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	HasYandex     bool   `json:"has_yandex"`
+	HasPasskey    bool   `json:"has_passkey"`
+	IsGuest       bool   `json:"is_guest"`
 }
 
 func NewHandler(
@@ -46,7 +59,36 @@ func NewHandler(
 		writeAPIError: writeAPIError,
 		now:           time.Now,
 		newToken:      generateSessionToken,
+		httpClient:    &http.Client{Timeout: 10 * time.Second},
 	}
+}
+
+func (h *Handler) ConfigureAccounts(
+	repository *Repository,
+	settings config.AuthConfig,
+	mailer Mailer,
+) error {
+	h.accounts = repository
+	h.settings = settings
+	h.mailer = mailer
+	if !settings.PasskeyComplete() {
+		return nil
+	}
+	instance, err := webauthn.New(&webauthn.Config{
+		RPID:                  settings.PasskeyRPID,
+		RPDisplayName:         settings.PasskeyRPName,
+		RPOrigins:             settings.PasskeyOrigins,
+		AttestationPreference: protocol.PreferNoAttestation,
+		AuthenticatorSelection: protocol.AuthenticatorSelection{
+			ResidentKey:      protocol.ResidentKeyRequirementRequired,
+			UserVerification: protocol.VerificationRequired,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	h.webAuthn = instance
+	return nil
 }
 
 func (h *Handler) CreateGuestSession(w http.ResponseWriter, r *http.Request) {
@@ -101,13 +143,30 @@ func (h *Handler) GetCurrentSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.writeJSON(w, http.StatusOK, map[string]any{
-		"user": userResponse{
-			ID:          userID,
-			DisplayName: guestDisplayName,
-			IsGuest:     true,
-		},
-	})
+	if h.accounts == nil {
+		h.writeJSON(w, http.StatusOK, map[string]any{
+			"user": userResponse{ID: userID, DisplayName: guestDisplayName, IsGuest: true},
+		})
+		return
+	}
+	account, err := h.accounts.GetAccount(r.Context(), userID)
+	if err != nil {
+		h.writeAPIError(w, http.StatusInternalServerError, "account_failed", "Could not load the account.")
+		return
+	}
+	h.writeJSON(w, http.StatusOK, map[string]any{"user": toUserResponse(account)})
+}
+
+func toUserResponse(account Account) userResponse {
+	return userResponse{
+		ID:            account.ID,
+		DisplayName:   account.DisplayName,
+		Email:         account.Email,
+		EmailVerified: account.EmailVerified(),
+		HasYandex:     account.HasYandex,
+		HasPasskey:    account.PasskeyCount > 0,
+		IsGuest:       account.IsGuest(),
+	}
 }
 
 func generateSessionToken() (string, error) {

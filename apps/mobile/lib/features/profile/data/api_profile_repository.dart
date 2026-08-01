@@ -35,6 +35,9 @@ class ApiProfileRepository implements ProfileRepository {
       displayName: profile['display_name'] as String? ?? 'Участник',
       avatarUrl: profile['avatar_url'] as String? ?? '',
       isCurrentUser: profile['is_current_user'] as bool? ?? userId == null,
+      emailVerified: profile['email_verified'] as bool? ?? false,
+      pendingPrizePoints:
+          (profile['pending_prize_points'] as num?)?.toInt() ?? 0,
       points: (profile['points'] as num?)?.toInt() ?? 0,
       firstPlaces: (profile['first_places'] as num?)?.toInt() ?? 0,
       secondPlaces: (profile['second_places'] as num?)?.toInt() ?? 0,

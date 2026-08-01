@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"creative-gym/apps/api/internal/config"
@@ -58,6 +59,33 @@ func TestVersionz(t *testing.T) {
 	}
 	if body := response.Body.String(); body != "{\"commit\":\"test-commit\"}\n" {
 		t.Fatalf("body = %q, want build commit", body)
+	}
+}
+
+func TestAssetLinksUsesConfiguredAndroidCertificate(t *testing.T) {
+	router := NewRouter(config.Config{
+		AppEnv:      "test",
+		HTTPAddr:    ":0",
+		DatabaseURL: "postgres://example",
+		DevUserID:   "00000000-0000-0000-0000-000000000001",
+		Auth: config.AuthConfig{
+			AndroidPackageName: "com.creativegym.mobile",
+			AndroidCerts:       []string{"AA:BB:CC"},
+		},
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), &pgxpool.Pool{})
+
+	request := httptest.NewRequest(http.MethodGet, "/.well-known/assetlinks.json", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, `"package_name":"com.creativegym.mobile"`) ||
+		!strings.Contains(body, `"delegate_permission/common.get_login_creds"`) ||
+		!strings.Contains(body, `"AA:BB:CC"`) {
+		t.Fatalf("body = %q, want Android association", body)
 	}
 }
 

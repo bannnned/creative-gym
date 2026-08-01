@@ -2,6 +2,8 @@ import 'package:creative_gym_mobile/core/auth/auth_session_store.dart';
 import 'package:creative_gym_mobile/core/errors/api_exception.dart';
 import 'package:creative_gym_mobile/core/network/api_client.dart';
 import 'package:creative_gym_mobile/features/auth/domain/test_account.dart';
+import 'package:creative_gym_mobile/features/auth/domain/auth_user.dart';
+import 'package:creative_gym_mobile/features/auth/data/passkey_service.dart';
 import 'package:dio/dio.dart';
 
 class AuthRepository {
@@ -10,11 +12,13 @@ class AuthRepository {
     this._sessionStore,
     this._usesRemoteAuth, {
     this.onSessionChanged,
-  });
+    PasskeyService? passkeys,
+  }) : _passkeys = passkeys ?? PasskeyService(_apiClient);
 
   final ApiClient _apiClient;
   final AuthSessionStore _sessionStore;
   final bool _usesRemoteAuth;
+  final PasskeyService _passkeys;
   final void Function()? onSessionChanged;
 
   static const maxTestAccounts = 8;
@@ -70,6 +74,91 @@ class AuthRepository {
       }
       rethrow;
     }
+  }
+
+  Future<AuthUser> getCurrentUser() async {
+    final response = await _request(
+      () => _apiClient.getJson('/api/v1/auth/me'),
+    );
+    return _userFromEnvelope(response);
+  }
+
+  Future<Map<String, dynamic>> startEmailVerification(String email) async {
+    await ensureSession();
+    return _request(
+      () => _apiClient.postJson(
+        '/api/v1/auth/email/start',
+        body: {'email': email.trim()},
+      ),
+    );
+  }
+
+  Future<String> startYandex() async {
+    await ensureSession();
+    final response = await _request(
+      () => _apiClient.postJson('/api/v1/auth/yandex/start'),
+    );
+    final authorizationUrl = response['authorization_url'];
+    if (authorizationUrl is! String || authorizationUrl.isEmpty) {
+      throw const ApiException(
+        code: 'invalid_yandex_response',
+        message: 'The server did not return a Yandex authorization URL.',
+      );
+    }
+    return authorizationUrl;
+  }
+
+  Future<AuthUser> exchangeCode(String code) async {
+    final response = await _request(
+      () => _apiClient.postJson('/api/v1/auth/exchange', body: {'code': code}),
+    );
+    await _storeSession(response);
+    return _userFromEnvelope(response);
+  }
+
+  Future<AuthUser> signInWithPasskey() async {
+    final response = await _passkeys.authenticate();
+    await _storeSession(response);
+    return _userFromEnvelope(response);
+  }
+
+  Future<AuthUser> createPasskey() async {
+    await ensureSession();
+    await _passkeys.register();
+    return getCurrentUser();
+  }
+
+  Future<void> ensureSession() async {
+    if (!_usesRemoteAuth) {
+      return;
+    }
+    final token = await _sessionStore.readToken();
+    if (token == null || token.isEmpty) {
+      await signInAsGuest();
+    }
+  }
+
+  Future<void> _storeSession(Map<String, dynamic> response) async {
+    final token = response['token'];
+    if (token is! String || token.isEmpty) {
+      throw const ApiException(
+        code: 'invalid_session_response',
+        message: 'The server did not return a session token.',
+      );
+    }
+    await _sessionStore.writeToken(token);
+    onSessionChanged?.call();
+  }
+
+  AuthUser _userFromEnvelope(Map<String, dynamic> response) {
+    final user = response['user'];
+    if (user is! Map<String, dynamic>) {
+      throw const ApiException(
+        code: 'invalid_session_response',
+        message: 'The server did not return the current user.',
+      );
+    }
+    return AuthUser.fromJson(user);
   }
 
   Future<List<TestAccount>> getTestAccounts({

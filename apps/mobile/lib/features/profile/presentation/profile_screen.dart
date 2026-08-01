@@ -161,6 +161,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       showBackButton: true,
       actions: widget.userId == null
           ? [
+              AppGlassHeaderAction(
+                key: const ValueKey('account-button'),
+                icon: Icons.person_outline_rounded,
+                semanticLabel: 'Аккаунт',
+                onPressed: () => context.push(AppRoutes.account),
+              ),
               FutureBuilder<bool>(
                 future: _adminStatusFuture,
                 builder: (context, snapshot) {
@@ -489,6 +495,16 @@ class _StatsBlock extends StatelessWidget {
                       context,
                     ).textTheme.bodyMedium?.copyWith(color: AppTheme.mutedInk),
                   ),
+                  if (data.pendingPrizePoints > 0) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      '+${data.pendingPrizePoints} после подтверждения почты',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.primaryDark,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

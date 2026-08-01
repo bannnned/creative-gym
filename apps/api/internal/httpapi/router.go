@@ -29,6 +29,17 @@ type versionResponse struct {
 	Commit string `json:"commit"`
 }
 
+type assetLinkTarget struct {
+	Namespace              string   `json:"namespace"`
+	PackageName            string   `json:"package_name"`
+	SHA256CertFingerprints []string `json:"sha256_cert_fingerprints"`
+}
+
+type assetLink struct {
+	Relation []string        `json:"relation"`
+	Target   assetLinkTarget `json:"target"`
+}
+
 type errorResponse struct {
 	Error apiError `json:"error"`
 }
@@ -46,6 +57,19 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 		writeJSON,
 		writeAPIError,
 	)
+	var authMailer auth.Mailer
+	if cfg.Auth.EmailComplete() {
+		authMailer = auth.NewSMTPMailer(
+			cfg.Auth.SMTPHost,
+			cfg.Auth.SMTPPort,
+			cfg.Auth.SMTPUsername,
+			cfg.Auth.SMTPPassword,
+			cfg.Auth.SMTPFrom,
+		)
+	}
+	if err := authHandler.ConfigureAccounts(authRepository, cfg.Auth, authMailer); err != nil {
+		logger.Error("account auth init failed", "error", err)
+	}
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
@@ -61,8 +85,34 @@ func NewRouter(cfg config.Config, logger *slog.Logger, dbPool *pgxpool.Pool) htt
 	mux.HandleFunc("GET /versionz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, versionResponse{Commit: cfg.BuildCommit})
 	})
+	mux.HandleFunc("GET /.well-known/assetlinks.json", func(w http.ResponseWriter, r *http.Request) {
+		links := make([]assetLink, 0, 1)
+		if len(cfg.Auth.AndroidCerts) > 0 {
+			links = append(links, assetLink{
+				Relation: []string{
+					"delegate_permission/common.handle_all_urls",
+					"delegate_permission/common.get_login_creds",
+				},
+				Target: assetLinkTarget{
+					Namespace:              "android_app",
+					PackageName:            cfg.Auth.AndroidPackageName,
+					SHA256CertFingerprints: cfg.Auth.AndroidCerts,
+				},
+			})
+		}
+		writeJSON(w, http.StatusOK, links)
+	})
 	mux.HandleFunc("POST /api/v1/auth/guest", authHandler.CreateGuestSession)
 	mux.HandleFunc("GET /api/v1/auth/me", authHandler.GetCurrentSession)
+	mux.HandleFunc("POST /api/v1/auth/email/start", authHandler.StartEmailVerification)
+	mux.HandleFunc("GET /api/v1/auth/email/confirm", authHandler.ConfirmEmail)
+	mux.HandleFunc("POST /api/v1/auth/yandex/start", authHandler.StartYandex)
+	mux.HandleFunc("GET /api/v1/auth/yandex/callback", authHandler.YandexCallback)
+	mux.HandleFunc("POST /api/v1/auth/exchange", authHandler.ExchangeCode)
+	mux.HandleFunc("POST /api/v1/auth/passkeys/register/options", authHandler.BeginPasskeyRegistration)
+	mux.HandleFunc("POST /api/v1/auth/passkeys/register/verify", authHandler.FinishPasskeyRegistration)
+	mux.HandleFunc("POST /api/v1/auth/passkeys/login/options", authHandler.BeginPasskeyLogin)
+	mux.HandleFunc("POST /api/v1/auth/passkeys/login/verify", authHandler.FinishPasskeyLogin)
 
 	challengeRepository := challenges.NewRepository(dbPool)
 	challengeHandler := challenges.NewHandler(
@@ -180,6 +230,7 @@ func isAPIPath(path string) bool {
 	return path == "/healthz" ||
 		path == "/readyz" ||
 		path == "/versionz" ||
+		path == "/.well-known/assetlinks.json" ||
 		path == "/api" ||
 		strings.HasPrefix(path, "/api/")
 }

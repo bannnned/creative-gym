@@ -30,15 +30,17 @@ type profileEnvelope struct {
 }
 
 type profileResponse struct {
-	UserID        string                `json:"id"`
-	DisplayName   string                `json:"display_name"`
-	AvatarURL     string                `json:"avatar_url"`
-	IsCurrentUser bool                  `json:"is_current_user"`
-	Points        int                   `json:"points"`
-	FirstPlaces   int                   `json:"first_places"`
-	SecondPlaces  int                   `json:"second_places"`
-	ThirdPlaces   int                   `json:"third_places"`
-	Works         []profileWorkResponse `json:"works"`
+	UserID             string                `json:"id"`
+	DisplayName        string                `json:"display_name"`
+	AvatarURL          string                `json:"avatar_url"`
+	IsCurrentUser      bool                  `json:"is_current_user"`
+	Points             int                   `json:"points"`
+	FirstPlaces        int                   `json:"first_places"`
+	SecondPlaces       int                   `json:"second_places"`
+	ThirdPlaces        int                   `json:"third_places"`
+	EmailVerified      bool                  `json:"email_verified"`
+	PendingPrizePoints int                   `json:"pending_prize_points"`
+	Works              []profileWorkResponse `json:"works"`
 }
 
 type profileWorkResponse struct {
@@ -83,15 +85,17 @@ func toSubmissionResponse(submission SubmissionResult) resultSubmissionResponse 
 
 func toProfileResponse(profile Profile) profileEnvelope {
 	response := profileResponse{
-		UserID:        profile.UserID,
-		DisplayName:   profile.DisplayName,
-		AvatarURL:     profile.AvatarURL,
-		IsCurrentUser: profile.IsCurrentUser,
-		Points:        profile.Points,
-		FirstPlaces:   profile.FirstPlaces,
-		SecondPlaces:  profile.SecondPlaces,
-		ThirdPlaces:   profile.ThirdPlaces,
-		Works:         make([]profileWorkResponse, 0, len(profile.Works)),
+		UserID:             profile.UserID,
+		DisplayName:        profile.DisplayName,
+		AvatarURL:          profile.AvatarURL,
+		IsCurrentUser:      profile.IsCurrentUser,
+		Points:             profile.Points,
+		FirstPlaces:        profile.FirstPlaces,
+		SecondPlaces:       profile.SecondPlaces,
+		ThirdPlaces:        profile.ThirdPlaces,
+		EmailVerified:      profile.EmailVerified,
+		PendingPrizePoints: profile.PendingPrizePoints,
+		Works:              make([]profileWorkResponse, 0, len(profile.Works)),
 	}
 	for _, work := range profile.Works {
 		response.Works = append(response.Works, profileWorkResponse{
